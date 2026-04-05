@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# mypy
+.mypy_cache/
+
+# pytest
+.pytest_cache/
+
+# ruff
+.ruff_cache/
+
+# Captures (keep structure, ignore data)
+captures/*.pcap
+captures/*.pcapng
+captures/*.bin
+captures/*.log
+!captures/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
