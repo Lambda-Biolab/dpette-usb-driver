@@ -6,12 +6,12 @@ raise ``NotImplementedError`` until the protocol is known.
 
 from __future__ import annotations
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from dpette.config import SerialConfig
-from dpette.driver import DPetteDriver, MAX_CONTIGUOUS_CYCLES
+from dpette.driver import MAX_CONTIGUOUS_CYCLES, DPetteDriver
 from dpette.safety import SafetyError
 
 

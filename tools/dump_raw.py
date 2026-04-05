@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-import time
 
 from dpette.config import SerialConfig, guess_default_port
 from dpette.logging_utils import get_logger

@@ -13,10 +13,14 @@ Every method that can move the piston validates parameters through
 
 from __future__ import annotations
 
-from dpette.config import SerialConfig
+from typing import TYPE_CHECKING
+
 from dpette.logging_utils import get_logger
-from dpette.safety import DEFAULT_LIMITS, SafetyLimits, validate_speed, validate_volume
+from dpette.safety import DEFAULT_LIMITS, SafetyLimits, validate_volume
 from dpette.serial_link import SerialLink
+
+if TYPE_CHECKING:
+    from dpette.config import SerialConfig
 
 log = get_logger(__name__)
 

@@ -56,7 +56,12 @@ def main() -> None:
     cfg = SerialConfig(port=args.port, baudrate=args.baud, timeout=args.listen)
 
     with SerialLink(cfg) as link:
-        log.info("Replaying %d bytes to %s @ %d baud", len(payload), args.port, args.baud)
+        log.info(
+            "Replaying %d bytes to %s @ %d baud",
+            len(payload),
+            args.port,
+            args.baud,
+        )
         link.write(payload)
 
         if args.delay > 0:

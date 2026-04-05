@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import glob
 import sys
-from dataclasses import dataclass, field
-
+from dataclasses import dataclass
 
 DEFAULT_BAUD_CANDIDATES: list[int] = [9600, 19200, 38400, 57600, 115200]
 """Baud rates to try when auto-detecting the pipette's serial speed."""

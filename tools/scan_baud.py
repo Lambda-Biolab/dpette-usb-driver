@@ -49,7 +49,12 @@ def main() -> None:
                 link.write(probe)
                 resp = link.read(64)
                 if resp:
-                    log.info("[HIT]  %6d baud -> %d bytes: %s", baud, len(resp), resp.hex(" "))
+                    log.info(
+                        "[HIT]  %6d baud -> %d bytes: %s",
+                        baud,
+                        len(resp),
+                        resp.hex(" "),
+                    )
                 else:
                     log.info("[MISS] %6d baud -> no response", baud)
         except Exception as exc:

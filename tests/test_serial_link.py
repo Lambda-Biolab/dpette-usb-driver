@@ -36,7 +36,9 @@ class TestSerialLinkLifecycle:
         assert not link.is_open
 
     @patch("dpette.serial_link.serial.Serial")
-    def test_context_manager(self, mock_serial_cls: MagicMock, cfg: SerialConfig) -> None:
+    def test_context_manager(
+        self, mock_serial_cls: MagicMock, cfg: SerialConfig
+    ) -> None:
         mock_port = MagicMock()
         mock_port.is_open = True
         mock_serial_cls.return_value = mock_port
@@ -58,7 +60,9 @@ class TestSerialLinkIO:
             link.read(1)
 
     @patch("dpette.serial_link.serial.Serial")
-    def test_write_sends_bytes(self, mock_serial_cls: MagicMock, cfg: SerialConfig) -> None:
+    def test_write_sends_bytes(
+        self, mock_serial_cls: MagicMock, cfg: SerialConfig
+    ) -> None:
         mock_port = MagicMock()
         mock_port.is_open = True
         mock_serial_cls.return_value = mock_port
@@ -69,13 +73,15 @@ class TestSerialLinkIO:
         mock_port.write.assert_called_once_with(b"\x01\x02\x03")
 
     @patch("dpette.serial_link.serial.Serial")
-    def test_read_returns_bytes(self, mock_serial_cls: MagicMock, cfg: SerialConfig) -> None:
+    def test_read_returns_bytes(
+        self, mock_serial_cls: MagicMock, cfg: SerialConfig
+    ) -> None:
         mock_port = MagicMock()
         mock_port.is_open = True
-        mock_port.read.return_value = b"\xAA\xBB"
+        mock_port.read.return_value = b"\xaa\xbb"
         mock_serial_cls.return_value = mock_port
 
         link = SerialLink(cfg)
         link.open()
         result = link.read(2)
-        assert result == b"\xAA\xBB"
+        assert result == b"\xaa\xbb"

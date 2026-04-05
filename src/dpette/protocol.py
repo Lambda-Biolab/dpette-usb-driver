@@ -16,8 +16,10 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from dpette.serial_link import SerialLink
+if TYPE_CHECKING:
+    from dpette.serial_link import SerialLink
 
 
 class MessageType(enum.IntEnum):
@@ -85,7 +87,7 @@ def encode_packet(pkt: Packet) -> bytes:
 
 
 def try_detect_baud(link: SerialLink, candidates: list[int]) -> int:
-    """Probe the device at each candidate baud rate and return the first that yields a response.
+    """Probe the device at each candidate baud rate; return the first that responds.
 
     Strategy (once a probe packet is known):
 

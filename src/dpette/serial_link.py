@@ -7,14 +7,16 @@ tests swap in a mock or loopback without touching higher layers.
 
 from __future__ import annotations
 
-import logging
-from types import TracebackType
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 import serial
 
-from dpette.config import SerialConfig
 from dpette.logging_utils import get_logger
+
+if TYPE_CHECKING:
+    from types import TracebackType
+
+    from dpette.config import SerialConfig
 
 log = get_logger(__name__)
 
@@ -101,7 +103,7 @@ class SerialLink:
         expires first.
         """
         port = self._require_open()
-        data = port.read(n)
+        data: bytes = port.read(n)
         if data:
             log.debug("RX %d bytes: %s", len(data), data.hex(" "))
         return data
@@ -112,7 +114,7 @@ class SerialLink:
         Returns the accumulated buffer **including** the terminator if found.
         """
         port = self._require_open()
-        data = port.read_until(terminator, max_len)
+        data: bytes = port.read_until(terminator, max_len)
         if data:
             log.debug("RX %d bytes: %s", len(data), data.hex(" "))
         return data
