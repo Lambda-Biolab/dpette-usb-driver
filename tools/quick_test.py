@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-"""Aspirate/dispense test at dial volume.
+"""Extreme volume test — 30 vs 300 µL for clear visual difference.
 
-Set the volume on the pipette dial before running.
-Tip should be on and dipped in water.
-DO NOT TOUCH the pipette during the test.
-
+Primes once at the start, then aspirates at each volume.
 Logs to captures/live_log.txt
 
 Run directly:
@@ -58,39 +55,56 @@ def sr(p: bytes, wait: float = 1.0) -> bytes:
     return ser.read(64)
 
 
-log("=== ASPIRATE/DISPENSE TEST ===")
-log("Tip on, dipped in water, HANDS OFF pipette")
-vol = log_input("What volume is the dial set to? ")
-log(f">> {vol}\n")
-
-log_input("Press ENTER when tip is in water and hands are off: ")
+log("=== EXTREME VOLUME TEST (30 vs 300 µL) ===")
+log("We prime ONCE, then test each volume.")
+log("The difference between 30 and 300 should be unmistakable.")
 log("")
 
-# Handshake
+# Initial handshake + prime
+log("Initial setup:")
 r = sr(pkt(0xA5))
-log(f"Handshake: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-
-# B0 prime
+log(f"  Handshake: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
 r = sr(pkt(0xB0, 0x01), wait=2.0)
-log(f"B0 prime:  ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+log(f"  B0 prime:  ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+log("  (prime done — no more B0 before aspirates)")
+log("")
 
-# B3 aspirate
-r = sr(pkt(0xB3, 0x01), wait=3.0)
-log(f"B3 aspir:  ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-ok = len(r) >= 12
-log(f"Motor {'OK' if ok else 'REJECTED'}")
+for vol in [300, 30, 300]:
+    log(f"{'=' * 50}")
+    log(f"TEST: dial = {vol} µL")
+    log(f"{'=' * 50}")
+    log_input(f"Set dial to {vol}, tip in water, HANDS OFF. Press ENTER: ")
+    log("")
 
-if ok:
-    note = log_input(f"\nHow much water? (expecting ~{vol}uL): ")
-    log(f">> {note}\n")
+    # B3 aspirate only — no B0 prime (already primed)
+    r = sr(pkt(0xB3, 0x01), wait=3.0)
+    log(f"  B3 aspir:  ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+    ok = len(r) >= 12
+    log(f"  Motor {'OK' if ok else 'REJECTED'}")
 
-    log_input("Hold over cup. Press ENTER to dispense: ")
+    if ok:
+        amount = log_input(f"  How much water in tip? (dial={vol}): ")
+        log(f"  >> {amount}")
+    else:
+        log("  REJECTED — sending B0 prime and retrying")
+        r = sr(pkt(0xB0, 0x01), wait=2.0)
+        log(f"  B0 prime: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+        r = sr(pkt(0xB3, 0x01), wait=3.0)
+        log(f"  B3 retry: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+        ok = len(r) >= 12
+        log(f"  Motor {'OK' if ok else 'STILL REJECTED'}")
+        if ok:
+            amount = log_input(f"  How much water in tip? (dial={vol}): ")
+            log(f"  >> {amount}")
+
+    # Dispense
+    log_input("  Hold over cup, press ENTER to dispense: ")
     r = sr(pkt(0xB0, 0x01), wait=2.0)
-    log(f"B0 disp:   ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-
-    note = log_input("Dispensed? (yes/no): ")
-    log(f">> {note}")
+    log(f"  B0 disp:  ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+    log("")
 
 ser.close()
-log("\nDone.")
+log("Done. Was there a clear difference between 30 and 300?")
+log_input("Answer: ")
+log("")
 _log.close()

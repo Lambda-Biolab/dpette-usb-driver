@@ -373,6 +373,44 @@ confirmed the true working sequence: B0 prime → B3 aspirate.
 
 ---
 
+### EXP-030: Extreme volume test (30 vs 300 µL) — definitive
+
+**Device:** 30-300 µL dPette (with dummy calibration from prior experiments)
+**Sequence:** Handshake → B0 prime (once) → B3 at 300 → B0 dispense →
+B3 at 30 → B0 dispense → B3 at 300 → B0 dispense
+**Results:**
+
+| Dial | B3 aspirated | Notes |
+|------|-------------|-------|
+| 300  | ~12 µL      | First after B0 prime — priming artifact |
+| 30   | **~30 µL**  | Correct |
+| 300  | **~300 µL** | Correct |
+
+**B0 behavior:** dispenses full amount + small re-aspirate at end (priming
+the piston for the next B3 cycle).
+
+**Conclusion:** ✅ **VOLUME FOLLOWS THE PHYSICAL DIAL — CONFIRMED.**
+The first B3 after a B0 prime draws a small amount (priming artifact).
+Subsequent B3 commands aspirate at the dial volume.  The 10x difference
+between 30 and 300 µL was unmistakable.
+
+---
+
+### Summary of confirmed working protocol
+
+```
+Handshake  [FE A5 00 00 00 A5]
+B0 prime   [FE B0 01 00 00 B1]  ← once per session, primes piston
+B3 aspirate [FE B3 01 00 00 B4] → 12-byte response, aspirates at dial vol
+B0 dispense [FE B0 01 00 00 B1] → dispenses + re-primes for next B3
+Repeat B3 → B0 as needed
+```
+
+Volume = physical dial setting.  No remote volume control.
+Tested on both 10-100 µL (clean) and 30-300 µL (recalibrated) devices.
+
+---
+
 ## Known side effects from experiments
 
 1. **Persistent Err4 on 30-300 device** — from EXP-018 cal mode entry.
