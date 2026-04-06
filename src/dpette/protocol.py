@@ -121,13 +121,27 @@ def send_cali_volume_packet(volume_ul: int) -> bytes:
     return encode_packet(Command.SEND_CALI_VOLUME, b2=hi, b3=lo)
 
 
+def read_ee_packet(addr: int) -> bytes:
+    """Build a ReadEE packet.
+
+    Address goes in byte[3] (confirmed from PetteCali serial capture).
+
+    >>> read_ee_packet(0x90).hex(' ')
+    'fe a3 00 90 00 33'
+    """
+    return encode_packet(Command.DATA, b2=0x00, b3=addr & 0xFF)
+
+
 def write_ee_packet(addr: int, value: int = 0) -> bytes:
     """Build a WriteEE packet.
 
-    Address and value encoding is provisional — needs write-read
-    confirmation against live hardware.
+    Address in byte[3], value in byte[4] (confirmed from PetteCali
+    serial capture).
+
+    >>> write_ee_packet(0x92, 0x2F).hex(' ')
+    'fe a4 00 92 2f 65'
     """
-    return encode_packet(Command.WRITE_EE, b2=addr & 0xFF, b3=0, b4=value & 0xFF)
+    return encode_packet(Command.WRITE_EE, b2=0x00, b3=addr & 0xFF, b4=value & 0xFF)
 
 
 def aspirate_packet() -> bytes:
