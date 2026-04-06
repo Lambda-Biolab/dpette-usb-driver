@@ -445,6 +445,36 @@ Repeat B3 → B0 as needed
 Volume = physical dial setting.  No remote volume control.
 Tested on both 10-100 µL (clean) and 30-300 µL (recalibrated) devices.
 
+### EXP-032: Full EEPROM scan (0x00-0xFF) and Err4 flag hunt
+
+**Device:** 30-300 µL dPette
+**Result:** Full EEPROM dump revealed:
+- 0x00: zero (only zero among surrounding 0xFF bytes)
+- 0x01-0x3F: all 0xFF (unused/erased EEPROM)
+- 0x42: 0x00 (zero among 0xFF — tested as Err4 flag, NOT it)
+- 0x60-0x67: `56 65 72 34 2E 32 2E 33` = ASCII **"Ver4.2.3"** (firmware version!)
+- 0x80-0xAF: calibration data (k/b coefficients — confirmed by PetteCali)
+- 0xB2-0xB3: 0x01 0x2C = 300 (max volume for 30-300 model)
+- 0xD2-0xD3: 0x0B 0xB8 = 3000 (300 µL × 10)
+
+**Err4 flag tests:**
+- Wrote 0xFF to 0x42 → error changed to Err2, restored to 0x00
+- Wrote 0x00 to 0xC4/0xC5 → no change
+- Wrote 0x03 to 0x80 (cal point count) → no change
+- Replicated full PetteCali sequence (A8→A0→A3 reads→A5→A6→A5) → no change
+
+**Conclusion:** Err4 is NOT stored in EEPROM. It is in MCU internal
+flash/registers not accessible via the serial protocol. Err4 is cosmetic —
+pipette and serial commands work normally after dismissing with button.
+
+---
+
+### EXP-033: A8 init command test
+
+**Command:** `FE A8 01 68 09 38` (exact bytes from PetteCali capture)
+**Result:** No response. A8 with other parameters echoed as A6.
+A8 may require specific device state (pre-handshake?) to work.
+
 ---
 
 ## Known side effects from experiments
