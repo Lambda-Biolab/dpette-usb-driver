@@ -35,6 +35,11 @@ captures/*.bin
 captures/*.log
 !captures/.gitkeep
 
+# Static analysis (keep PDF source, ignore derived images)
+captures/static-analysis/*.png
+captures/static-analysis/*.html
+captures/static-analysis/extracted/
+
 # OS
 .DS_Store
 Thumbs.db
