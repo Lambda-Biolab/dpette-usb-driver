@@ -7,7 +7,6 @@ Every method that can move the piston validates parameters through
 
 from __future__ import annotations
 
-import time
 from typing import TYPE_CHECKING
 
 from dpette.logging_utils import get_logger
@@ -59,12 +58,10 @@ class DPetteDriver:
     # -- lifecycle ------------------------------------------------------------
 
     def connect(self) -> None:
-        """Open the serial link and perform a handshake with the pipette.
+        """Open the serial link, handshake, and prime the device.
 
-        After the initial handshake, performs a calibration-mode toggle
-        (enter then exit) to ensure the device is in normal operating
-        mode.  This clears any stale calibration state that would cause
-        motor commands to be rejected.
+        After the handshake, sends a B0 "prime" command which is
+        required before the first B3 aspirate will be accepted.
 
         .. note::
            If the pipette shows Err4 on startup, dismiss it with the
@@ -80,14 +77,9 @@ class DPetteDriver:
                 raise RuntimeError(
                     f"Unexpected handshake response cmd 0x{resp.cmd:02X}"
                 )
-            log.info("Handshake OK — toggling cal mode to clear stale state")
-            # Enter cal mode (may get no response if Err4 is showing)
-            self._link.write(encode_packet(Command.HANDSHAKE, b2=0x01))
-            time.sleep(2.0)
-            self._link.read(PACKET_LEN)  # consume response or timeout
-            # Exit cal mode
-            self._transact(handshake_packet(), timeout=HANDSHAKE_TIMEOUT_S)
-            log.info("Cal mode toggle complete — device in normal mode")
+            log.info("Handshake OK — sending B0 prime")
+            self._transact(dispense_packet())
+            log.info("Prime complete — device ready for aspirate/dispense")
             self._connected = True
             self._cycle_count = 0
         except Exception:
