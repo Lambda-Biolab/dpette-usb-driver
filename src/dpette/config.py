@@ -40,7 +40,9 @@ def guess_default_port() -> str | None:
     if sys.platform.startswith("linux"):
         candidates = sorted(glob.glob("/dev/ttyUSB*"))
     elif sys.platform == "darwin":
-        candidates = sorted(glob.glob("/dev/cu.SLAB_USBtoUART*"))
+        candidates = sorted(
+            glob.glob("/dev/tty.SLAB_USBtoUART*") + glob.glob("/dev/cu.SLAB_USBtoUART*")
+        )
     else:
         candidates = []
     return candidates[0] if candidates else None
