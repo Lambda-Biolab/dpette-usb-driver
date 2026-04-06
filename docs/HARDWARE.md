@@ -16,33 +16,32 @@ owner: "lambda biolab"
 
 Both models connect via USB using a Silicon Labs CP210x bridge chip.
 
-## CP210x USB-UART bridge
+## CP210x USB-UART bridge (CONFIRMED)
 
-- **Chip:** CP210x (exact variant unknown — likely CP2102 or CP2104)
-- **VID:** `0x10C4` (Silicon Labs) — *to be confirmed*
-- **PID:** unknown — *capture `lsusb -v` output when device is connected*
-- **Driver:** built into Linux kernel (`cp210x` module); on macOS, natively
-  supported — device appears as `/dev/tty.SLAB_USBtoUART` without extra drivers
-- **Enumeration:** `/dev/ttyUSB*` (Linux), `/dev/tty.SLAB_USBtoUART` (macOS)
+- **Chip:** CP2102 (confirmed via `system_profiler SPUSBDataType`)
+- **VID:** `0x10C4` (Silicon Labs) — **confirmed**
+- **PID:** `0xEA60` (CP2102 USB to UART Bridge Controller) — **confirmed**
+- **Serial Number:** `0001`
+- **Speed:** Up to 12 Mb/s
+- **Current Required:** 100 mA
+- **Driver:** built into Linux kernel (`cp210x` module); on macOS (Apple
+  Silicon), natively supported without extra drivers
+- **Enumeration:** `/dev/ttyUSB*` (Linux), `/dev/cu.usbserial-0001` (macOS
+  Apple Silicon — NOT `/dev/tty.SLAB_USBtoUART` as older docs suggest)
 
 ### Confirming the chip
 
 ```bash
-# macOS — with pipette plugged in
-system_profiler SPUSBDataType | grep -A5 -i "silicon\|cp210\|dlab"
-ls /dev/tty.*SLAB* /dev/cu.*SLAB*
+# macOS (Apple Silicon) — with pipette plugged in
+system_profiler SPUSBDataType | grep -A10 -i "cp210"
+ls /dev/cu.usbserial* /dev/tty.usbserial*
 
 # Linux — with pipette plugged in
 lsusb | grep -i silicon
-# Expected: Bus 00x Device 00y: ID 10c4:XXXX Silicon Labs ...
-lsusb -d 10c4: -v 2>/dev/null | head -40
+# Expected: Bus 00x Device 00y: ID 10c4:ea60 Silicon Labs CP210x ...
+lsusb -d 10c4:ea60 -v 2>/dev/null | head -40
 dmesg | tail -20 | grep -i cp210
 ```
-
-### Reading VID/PID from the chip
-
-The `cp210x-program` tool can read the CP210x EEPROM to extract
-VID/PID and other configuration: https://github.com/VCTLabs/cp210x-program
 
 ## Connecting the pipette
 
@@ -56,7 +55,7 @@ The pipette has two states (confirmed from PetteCali instructions PDF):
 Connection procedure:
 
 1. Connect the USB cable to the pipette and host PC.
-2. Confirm the serial device appears (`/dev/tty.SLAB_USBtoUART` on macOS).
+2. Confirm the serial device appears (`/dev/cu.usbserial-0001` on macOS).
 3. **Press the operation button** on the pipette to wake it from standby.
 4. Software can now connect (HandShake succeeds).
 
@@ -67,9 +66,9 @@ of standby vs connectable states.
 
 - **Name:** PetteCali (downloadable via QR code from DLAB)
 - **Platform:** Windows only (XP/Vista/7/8/10 per the dPette+ manual)
-- **Architecture:** almost certainly .NET — decompilable with dnSpyEx or ILSpy
-- **Use for RE:** decompile to extract baud rate, command strings, and full
-  protocol without any hardware interaction
+- **Architecture:** native C++/Qt6, MinGW x86-64 (NOT .NET as initially assumed)
+- **Use for RE:** decompile with Ghidra to extract baud rate, command bytes,
+  and packet format; instruction-level disassembly required for byte constants
 
 ## Internal MCU
 

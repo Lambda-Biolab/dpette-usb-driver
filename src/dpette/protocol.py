@@ -1,115 +1,153 @@
 """Frame-level encoding / decoding for the dPette serial protocol.
 
-This module owns the byte-level framing — start bytes, length fields,
-checksums, message-type tags — but knows nothing about high-level
-commands like "aspirate" or "dispense".
+All packets are 6 bytes::
 
-Everything here operates on plain ``bytes`` objects; actual serial I/O
+    [HEADER] [CMD] [B2] [B3] [B4] [CHECKSUM]
+
+Header is ``0xFE`` for host→device, ``0xFD`` for device→host.
+Checksum is ``sum(bytes[1:5]) & 0xFF``.
+
+This module owns the byte-level framing but knows nothing about
+high-level commands like "aspirate" or "dispense".  Actual serial I/O
 lives in :mod:`dpette.serial_link`.
-
-.. warning::
-   Protocol details are not yet known.  Functions raise
-   ``NotImplementedError`` until captures are analysed.
 """
 
 from __future__ import annotations
 
 import enum
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from dpette.serial_link import SerialLink
+HEADER_TX: int = 0xFE
+"""Header byte for host → device packets."""
 
+HEADER_RX: int = 0xFD
+"""Header byte for device → host packets."""
 
-class MessageType(enum.IntEnum):
-    """Known message types (to be populated from captures)."""
-
-    PING = 0x01
-    IDENTIFY = 0x02
-    SET_CAL = 0x03
-    ACK = 0x80
-    ERROR = 0xFF
-    UNKNOWN = 0x00
+PACKET_LEN: int = 6
+"""Every packet (TX and RX) is exactly 6 bytes."""
 
 
-@dataclass(frozen=True)
+class Command(enum.IntEnum):
+    """Known command bytes (confirmed via disassembly + live probing)."""
+
+    HANDSHAKE = 0xA5
+    SEND_CALI_VOLUME = 0xA6
+    WRITE_EE = 0xA4
+    DATA = 0xA3
+    ASPIRATE = 0xB3
+    DISPENSE = 0xB0
+
+
+@dataclass(frozen=True, slots=True)
 class Packet:
-    """A single protocol frame."""
+    """A single 6-byte protocol frame."""
 
-    msg_type: MessageType
-    payload: bytes
-    raw: bytes = b""
+    header: int
+    cmd: int
+    b2: int
+    b3: int
+    b4: int
+    checksum: int
+
+    @property
+    def payload(self) -> tuple[int, int, int]:
+        return (self.b2, self.b3, self.b4)
+
+    @property
+    def raw(self) -> bytes:
+        return bytes([self.header, self.cmd, self.b2, self.b3, self.b4, self.checksum])
+
+
+def compute_checksum(cmd: int, b2: int, b3: int, b4: int) -> int:
+    """Return ``sum(cmd, b2, b3, b4) & 0xFF``."""
+    return (cmd + b2 + b3 + b4) & 0xFF
+
+
+def encode_packet(cmd: int, b2: int = 0, b3: int = 0, b4: int = 0) -> bytes:
+    """Build a 6-byte TX packet with computed checksum.
+
+    >>> encode_packet(Command.HANDSHAKE).hex(' ')
+    'fe a5 00 00 00 a5'
+    """
+    cksum = compute_checksum(cmd, b2, b3, b4)
+    return bytes([HEADER_TX, cmd, b2, b3, b4, cksum])
 
 
 def decode_packet(raw: bytes) -> Packet:
-    """Decode a raw byte sequence into a structured :class:`Packet`.
-
-    Expected behaviour (once the protocol is known):
-
-    1. Validate a start-of-frame marker or length prefix.
-    2. Extract the message-type byte.
-    3. Extract the payload (variable length).
-    4. Verify the checksum / CRC.
-    5. Return a ``Packet`` with all fields populated.
+    """Parse a 6-byte response into a :class:`Packet`.
 
     Raises
     ------
-    NotImplementedError
-        Always — protocol framing is not yet reverse-engineered.
     ValueError
-        (Future) when the raw data fails validation.
+        If *raw* is not 6 bytes, has a wrong header, or fails checksum.
     """
-    raise NotImplementedError(
-        "Protocol framing is not yet reverse-engineered. "
-        "Analyse captures in captures/ and update docs/PROTOCOL_NOTES.md first."
-    )
+    if len(raw) != PACKET_LEN:
+        raise ValueError(f"Expected {PACKET_LEN} bytes, got {len(raw)}")
+    header, cmd, b2, b3, b4, cksum = raw
+    if header != HEADER_RX:
+        raise ValueError(f"Expected RX header 0x{HEADER_RX:02X}, got 0x{header:02X}")
+    expected = compute_checksum(cmd, b2, b3, b4)
+    if cksum != expected:
+        raise ValueError(
+            f"Checksum mismatch: got 0x{cksum:02X}, expected 0x{expected:02X}"
+        )
+    return Packet(header=header, cmd=cmd, b2=b2, b3=b3, b4=b4, checksum=cksum)
 
 
-def encode_packet(pkt: Packet) -> bytes:
-    """Encode a :class:`Packet` into raw bytes suitable for transmission.
+# ---------------------------------------------------------------------------
+# High-level packet builders
+# ---------------------------------------------------------------------------
 
-    Expected behaviour (once the protocol is known):
 
-    1. Build a frame with start marker, message type, length, payload.
-    2. Append checksum / CRC.
-    3. Return the complete byte sequence.
+def handshake_packet(param: int = 0) -> bytes:
+    """Build a HandShake / StartCalibrate packet.
 
-    Raises
-    ------
-    NotImplementedError
-        Always — protocol framing is not yet reverse-engineered.
+    ``param=0`` for connection check, ``param=1`` for start calibrate.
     """
-    raise NotImplementedError(
-        "Protocol framing is not yet reverse-engineered. "
-        "Analyse captures in captures/ and update docs/PROTOCOL_NOTES.md first."
-    )
+    return encode_packet(Command.HANDSHAKE, b2=param)
 
 
-def try_detect_baud(link: SerialLink, candidates: list[int]) -> int:
-    """Probe the device at each candidate baud rate; return the first that responds.
+def send_cali_volume_packet(volume_ul: int) -> bytes:
+    """Build a SendCaliVolume packet.
 
-    Strategy (once a probe packet is known):
+    Volume is encoded as ``volume_µL × 10``, big-endian in bytes[2:3].
 
-    1. For each baud rate in *candidates*, reconfigure the link.
-    2. Send a short probe (e.g. a PING packet).
-    3. Wait for a non-empty response within the read timeout.
-    4. If a response is received, return that baud rate.
-    5. If no candidate succeeds, raise ``RuntimeError``.
-
-    Parameters
-    ----------
-    link:
-        An **open** :class:`SerialLink` — the caller owns its lifecycle.
-    candidates:
-        Baud rates to try, in order.
-
-    Raises
-    ------
-    NotImplementedError
-        Always — we don't yet know which probe byte(s) elicit a response.
+    >>> send_cali_volume_packet(1000).hex(' ')
+    'fe a6 27 10 00 dd'
     """
-    raise NotImplementedError(
-        "Cannot detect baud rate until a known probe packet is identified. "
-        "Use tools/scan_baud.py with a live device to discover this."
-    )
+    val = volume_ul * 10
+    hi = (val >> 8) & 0xFF
+    lo = val & 0xFF
+    return encode_packet(Command.SEND_CALI_VOLUME, b2=hi, b3=lo)
+
+
+def write_ee_packet(addr: int, value: int = 0) -> bytes:
+    """Build a WriteEE packet.
+
+    Address and value encoding is provisional — needs write-read
+    confirmation against live hardware.
+    """
+    return encode_packet(Command.WRITE_EE, b2=addr & 0xFF, b3=0, b4=value & 0xFF)
+
+
+def aspirate_packet() -> bytes:
+    """Build an Aspirate packet.
+
+    Aspirates at the pipette's current display volume.
+    The device returns a double response (started + completed).
+
+    >>> aspirate_packet().hex(' ')
+    'fe b3 01 00 00 b4'
+    """
+    return encode_packet(Command.ASPIRATE, b2=0x01)
+
+
+def dispense_packet() -> bytes:
+    """Build a Dispense packet.
+
+    Dispenses at the pipette's current display volume.
+
+    >>> dispense_packet().hex(' ')
+    'fe b0 01 00 00 b1'
+    """
+    return encode_packet(Command.DISPENSE, b2=0x01)
