@@ -93,18 +93,15 @@ RX: [FD] [A5] [00]    [00] [00] [A5]
 ```
 
 - `param=0`: connection handshake / exit calibration mode (confirmed live)
-- `param=1`: enter calibration mode — **triggers aspirate** at the volume
-  previously set by A6 (confirmed live with motor movement)
+- `param=1`: enter calibration mode — causes persistent Err4 on the
+  pipette display.  Does NOT trigger motor movement by itself.
 - Response is always `fd a5 00 00 00 a5` regardless of param value
-- Entering cal mode (b2=1) shows Err4 on the pipette display; dismiss
-  with the physical button to access the calibration menu
-- Exiting cal mode (b2=0) also triggers Err4
-- **Aspirate only occurs on the normal→cal mode transition**; re-sending
-  A5 b2=1 while already in cal mode does NOT aspirate again
+- **WARNING:** A5 b2=1 causes persistent Err4 that survives reboots.
+  Confirmed on two separate devices.  Only use when necessary.
 - Source: FUN_140069c60 disassembly; `param` comes from `movsx edx, sil`
   at 0x140069ce1
 
-**SetVolume / SendCaliVolume (0xA6):**
+**SendCaliVolume (0xA6):**
 
 ```
 TX: [FE] [A6] [vol_hi] [vol_lo] [00] [cksum]
@@ -113,10 +110,10 @@ RX: [FD] [A6] [00]     [00]     [00] [A6]
 
 - Volume encoded as `volume_µL × 10`, big-endian in bytes[2:3]
 - Example: 200 µL → 2000 = 0x07D0 → `[FE A6 07 D0 00 7D]`
-- **In normal mode**: sets the motor target volume for the NEXT cal mode
-  entry (does not change display, does not move motor)
 - **In cal mode**: changes the display volume (confirmed live — display
   updated from 100 to 50, 150, 200 etc.)
+- **Does NOT control motor travel** — tested: A6=10 and A6=100 both
+  aspirated the same amount.  Volume is set by physical dial only.
 - Source: FUN_140069a10 disassembly; calling code at line 12254
   shows `iVar3 = param_2 * 10`
 
@@ -143,7 +140,7 @@ RX: [FD] [A3] [??] [00] [00] [cksum]
   0xA3 in byte[1] of RESPONSES and enters a calibration data parser
 - May be used by the device to send calibration data asynchronously
 
-**Aspirate (0xB3) — CONFIRMED live, motor movement (normal mode only):**
+**Aspirate (0xB3) — CONFIRMED live, motor movement:**
 
 ```
 TX: [FE] [B3] [01] [00] [00] [B4]
@@ -151,25 +148,27 @@ RX: [FD] [B3] [00] [00] [00] [B3]   ← motor started
     [FD] [B3] [01] [00] [00] [B4]   ← motor finished (12 bytes total)
 ```
 
-- `b2=0x01` triggers aspiration at the pipette's current display volume
+- `b2=0x01` triggers aspiration at the pipette's physical dial volume
 - Returns a **double 6-byte response**: first packet (b2=0x00) = started,
   second packet (b2=0x01) = completed
-- **Only works in normal mode** — rejected in calibration mode (returns
-  single 6-byte response with b2=0x00, no motor movement)
-- Volume is the display volume (or the last A6-set volume if cal mode
-  was used to override it)
+- **REQUIRES B0 b2=1 to be sent first** ("prime") — without the prior
+  B0, B3 is rejected (returns single 6-byte response, no motor)
+- Rejected in calibration mode
+- Confirmed on clean 10-100 µL device with hands completely off pipette
 
-**Dispense (0xB0) — CONFIRMED live, motor movement (both modes):**
+**Dispense / Prime (0xB0) — CONFIRMED live, motor movement:**
 
 ```
 TX: [FE] [B0] [01] [00] [00] [B1]
 RX: [FD] [B0] [00] [00] [00] [B0]
 ```
 
-- `b2=0x01` triggers dispensing
+- `b2=0x01` triggers dispensing AND serves as the "prime" command
+  that enables B3 aspirate to work
 - Returns a single 6-byte response (b2=0x00 = acknowledged)
-- **Works in both normal and calibration modes** (confirmed live)
-- `b2=0x00` does NOT trigger dispense (no response or different behavior)
+- **Must be sent before B3** — B3 is rejected without a prior B0
+- Works in both normal and calibration modes (confirmed live)
+- `b2=0x00` does NOT trigger dispense
 
 **Data dump commands (0xA1, 0xA2) — 13-byte responses:**
 
@@ -297,55 +296,89 @@ Response timeout: 1000ms per read (`_timerRead->start(1000)`).
 
 ## Remote pipetting flow (CONFIRMED — live hardware, 2026-04-06)
 
-### Fixed-volume mode (CONFIRMED, RELIABLE)
+### Pipetting sequence (CONFIRMED — hands-off, no Err4)
 
-Set volume manually on the pipette, then control aspirate/dispense
-remotely.  This is the proven reliable path.
+Tested on clean dPette 10-100 µL.  Set volume on the physical dial,
+then control aspirate/dispense remotely.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ Prerequisites:                                          │
 │   - Set volume on pipette dial/buttons                  │
 │   - Dismiss Err4 if showing (hold pipette button)       │
+│   - Attach tip                                          │
 │                                                         │
 │ 1. Handshake         [FE A5 00 00 00 A5]               │
 │    → device ACKs     [FD A5 00 00 00 A5]               │
 │                                                         │
-│ 2. Aspirate (B3)     [FE B3 01 00 00 B4]               │
+│ 2. Prime (B0)        [FE B0 01 00 00 B1]               │
+│    → device ACKs     [FD B0 00 00 00 B0]               │
+│    (REQUIRED before B3 — enables aspirate)              │
+│                                                         │
+│ 3. Aspirate (B3)     [FE B3 01 00 00 B4]               │
 │    → motor started   [FD B3 00 00 00 B3]               │
 │    → motor done      [FD B3 01 00 00 B4]  (12 bytes)   │
 │                                                         │
-│ 3. Dispense (B0)     [FE B0 01 00 00 B1]               │
+│ 4. Dispense (B0)     [FE B0 01 00 00 B1]               │
 │    → device ACKs     [FD B0 00 00 00 B0]               │
 │                                                         │
-│ Repeat 2-3 as needed.                                   │
+│ For next cycle: repeat from step 3 (B0 already primed) │
+│ or from step 2 if B3 is rejected.                       │
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Note:** If B3 aspirate is rejected (6-byte response instead of 12),
-perform a cal-mode toggle first to clear stale state:
-```
-[FE A5 01 00 00 A6]  → enter cal (dismiss Err4)
-[FE A5 00 00 00 A5]  → exit cal (dismiss Err4)
-```
-Then B3 will work.  This is needed after any previous cal mode use.
+**Key requirement: B0 must be sent before B3.**  Without the B0 "prime",
+B3 returns a single 6-byte response and the motor does not move.  This
+was confirmed on a clean device with hands completely off the pipette.
 
-### Remote volume control (EXPERIMENTAL — NOT CONFIRMED)
+**Volume:** determined by the physical dial setting.  There is no
+confirmed way to change the volume remotely via serial commands.
 
-A6 changes the display in calibration mode, but we could NOT confirm
-it reliably changes the actual motor travel.  One test (EXP-019) appeared
-to show A6=50 causing a 50 µL aspirate, but this could not be reproduced.
+### Remote volume control — NOT CONFIRMED
 
-Calibration mode entry triggers a fixed homing cycle (aspirate + dispense)
-that is NOT controlled by A6.  The homing cycle runs the same regardless
-of the A6-set volume.
+A6 changes the display text in calibration mode, but does NOT control
+the actual motor travel.  Tested: A6=10 and A6=100 both aspirated the
+same amount.  Volume is set by the physical dial only.
 
-PetteCali likely uses A6 to set the display volume, and the user
-physically presses the pipette button to aspirate at each calibration
-measurement point.  The software does not trigger the aspirate.
+Calibration mode entry (A5 b2=1) does NOT trigger motor movement by
+itself — confirmed on a clean device.  Earlier observations of motor
+movement during cal mode were caused by physical button presses to
+dismiss Err4, not by the serial command.
 
 **Status: remote volume control is NOT available through the known
 protocol.  Volume must be set manually on the pipette.**
+
+### DANGEROUS COMMANDS — DO NOT SEND
+
+The following command **permanently damages device state** and should
+NOT be sent during normal operation:
+
+```
+⚠️  [FE A5 01 00 00 A6]  — Enter Calibration Mode (A5 b2=1)
+```
+
+**What it does:** Puts the device into calibration mode and sets a
+persistent flag that causes Err4 on every subsequent reboot.
+
+**Confirmed damage:** Sent to two separate dPette devices (30-300 µL
+and 10-100 µL).  Both now show Err4 on every power-on.  The error
+must be dismissed with the physical button each time.
+
+**How to fix:** Complete a full calibration through PetteCali
+(Windows software) and click WriteData.  The physical factory reset
+button does NOT clear this flag.  PetteCali's ResetFactory also does
+NOT clear it — only WriteData after a complete 3-step calibration.
+
+**Other risky commands:**
+- `A4` (WriteEE) — writes to device EEPROM.  Incorrect values can
+  affect calibration accuracy.  Our experiments wrote k=1.2313,
+  b=0.0000 to the 30-300 device, which may have broken motor control
+  until PetteCali recalibration.
+
+Previously documented "cal mode aspirate" findings (EXP-019, EXP-025)
+were incorrect — motor movement was caused by physical button presses
+during Err4 dismissal, not by serial commands.  These have been
+reclassified as dead ends in EXPERIMENT_LOG.md.
 
 ## Open questions
 

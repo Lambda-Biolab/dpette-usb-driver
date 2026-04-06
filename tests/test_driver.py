@@ -72,17 +72,16 @@ class TestConnect:
         drv.connect()
         assert drv._connected
 
-    def test_connect_performs_cal_toggle(
+    def test_connect_sends_handshake_and_prime(
         self, cfg: SerialConfig, mock_serial: MagicMock
     ) -> None:
         drv = DPetteDriver(cfg)
         drv.connect()
-        # Should have written: handshake, cal enter, cal exit handshake
+        # Should have written: handshake, then B0 prime
         writes = [call[0][0] for call in mock_serial.write.call_args_list]
-        assert len(writes) == 3
+        assert len(writes) == 2
         assert writes[0] == bytes.fromhex("fe a5 00 00 00 a5")  # handshake
-        assert writes[1] == bytes.fromhex("fe a5 01 00 00 a6")  # enter cal
-        assert writes[2] == bytes.fromhex("fe a5 00 00 00 a5")  # exit cal
+        assert writes[1] == bytes.fromhex("fe b0 01 00 00 b1")  # B0 prime
 
     def test_connect_timeout_closes_port(
         self, cfg: SerialConfig, mock_serial: MagicMock

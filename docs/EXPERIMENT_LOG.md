@@ -323,14 +323,61 @@ trigger the aspirate — the operator does.
 **Remote volume control status: UNCONFIRMED / LIKELY NOT POSSIBLE
 through the calibration protocol alone.**
 
+### EXP-027: Clean device test (10-100 µL dPette)
+
+**Device:** Second dPette, 10-100 µL range, never touched before
+**Results:**
+- Handshake works ✓
+- B3 b2=1 alone → REJECTED (same as corrupted device)
+- A5 b2=1 (enter cal) → causes persistent Err4, NO motor movement
+- B0 b2=1 in cal mode → motor moved (small aspirate)
+- A6 does NOT control motor travel (A6=10 and A6=100 same amount)
+**Conclusion:** B3 rejection is normal behavior, not corruption.
+A5 b2=1 causes Err4 on clean devices too.
+
+---
+
+### EXP-028: B0 primes B3 — definitive hands-off test
+
+**Device:** 10-100 µL dPette (in cal mode state from EXP-027)
+**Sequence:** Handshake → B0 b2=1 → B3 b2=1
+**Result:** ✅ **B3 WORKS after B0 prime!**
+- B0 b2=1: 6-byte ACK
+- B3 b2=1: 12-byte double response, motor aspirated
+- Repeated 3 times successfully
+- **No Err4, no button press, hands completely off pipette**
+**Conclusion:** B0 b2=1 is a required "prime" command that enables B3.
+Without B0, B3 is always rejected.
+
+---
+
+### EXP-029: Volume follows physical dial
+
+**Device:** 10-100 µL dPette
+**Test:** Dial at 100 µL → handshake → B0 → B3 → aspirated ~100 µL
+**A6 test:** A6=10 sent before B0/B3 → aspirated same amount (not 10)
+**Conclusion:** Volume = physical dial setting. A6 does NOT control
+motor travel.
+
+---
+
+### CORRECTION: Earlier motor observations were physical button presses
+
+EXP-011 (B3 "aspirate" discovery), EXP-019 (50 µL volume control),
+and EXP-025 (cal mode aspirate) all involved dismissing Err4 with
+the physical button during testing. The motor movements attributed
+to serial commands were actually caused by the button presses.
+
+The definitive test (EXP-028) with hands completely off the pipette
+confirmed the true working sequence: B0 prime → B3 aspirate.
+
 ---
 
 ## Known side effects from experiments
 
-1. **Persistent Err4** — appears on every reboot since EXP-018. Dismiss
-   with physical button. Does not affect functionality after dismissal.
-2. **Dummy calibration data** — k=1.2313, b=0.0000 written by PetteCali
-   (EXP-022). May affect pipetting accuracy. Needs proper recalibration
-   with real weight measurements.
-3. **Serial aspirate blocked after cal mode** — B3 is rejected until a
-   cal-mode toggle is performed (EXP-023). Built into driver's connect().
+1. **Persistent Err4 on 30-300 device** — from EXP-018 cal mode entry.
+   Dismiss with button. PetteCali WriteData clears it.
+2. **Persistent Err4 on 10-100 device** — from EXP-027 cal mode entry.
+   Same behavior.
+3. **Dummy calibration on 30-300 device** — k=1.2313, b=0.0000 written
+   by PetteCali (EXP-022). Needs proper recalibration.

@@ -43,6 +43,26 @@ factory or debug modes.
 hand-crafted bytes are reserved for `tools/` scripts used during
 reverse-engineering.
 
+### 5. Calibration mode entry causes persistent Err4
+
+Sending `A5 b2=1` (enter calibration mode) sets a persistent flag
+that causes Err4 on every subsequent reboot.  This was confirmed on
+two separate devices and **cannot be cleared** without running a full
+calibration through PetteCali (Windows software).
+
+**Mitigation:** the driver NEVER sends `A5 b2=1`.  The `connect()`
+method uses only `A5 b2=0` (handshake) and `B0 b2=1` (prime).
+The `Command.HANDSHAKE` with `b2=1` is intentionally not exposed
+as a high-level method.
+
+### 6. EEPROM writes can break motor control
+
+Writing incorrect calibration values (k/b coefficients) to EEPROM
+via `A4` can cause the motor to refuse aspirate/dispense commands.
+
+**Mitigation:** `write_ee()` is marked as provisional and should not
+be used without understanding the exact byte layout.
+
 ## Safety invariants
 
 1. **Volume bounds** — every `set_volume()` call passes through
