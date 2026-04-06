@@ -35,10 +35,16 @@ captures/*.bin
 captures/*.log
 !captures/.gitkeep
 
-# Static analysis (keep PDF source, ignore derived images)
+# Static analysis (large files)
 captures/static-analysis/*.png
 captures/static-analysis/*.html
+captures/static-analysis/*.c
+captures/static-analysis/*.cpp
 captures/static-analysis/extracted/
+captures/static-analysis/ghidra-project/
+
+# Temp logs from live probing
+captures/*.txt
 
 # OS
 .DS_Store

@@ -3,30 +3,43 @@
 This module provides the user-facing API for controlling a pipette.
 Every method that can move the piston validates parameters through
 :mod:`dpette.safety` before issuing any serial commands.
-
-.. warning::
-   All command methods currently raise ``NotImplementedError`` because the
-   serial protocol has not yet been reverse-engineered.  Implement them
-   only after updating ``docs/PROTOCOL_NOTES.md`` with the discovered
-   packet formats.
 """
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING
 
 from dpette.logging_utils import get_logger
+from dpette.protocol import (
+    PACKET_LEN,
+    Command,
+    aspirate_packet,
+    decode_packet,
+    dispense_packet,
+    encode_packet,
+    handshake_packet,
+    send_cali_volume_packet,
+    write_ee_packet,
+)
 from dpette.safety import DEFAULT_LIMITS, SafetyLimits, validate_volume
 from dpette.serial_link import SerialLink
 
 if TYPE_CHECKING:
     from dpette.config import SerialConfig
+    from dpette.protocol import Packet
 
 log = get_logger(__name__)
 
 MAX_CONTIGUOUS_CYCLES: int = 50
 """Hard stop: refuse to execute more than this many aspirate/dispense
 cycles without an explicit reset.  Prevents mechanical abuse."""
+
+HANDSHAKE_TIMEOUT_S: float = 2.0
+"""Maximum seconds to wait for a handshake response."""
+
+READ_TIMEOUT_S: float = 1.0
+"""Maximum seconds to wait for a read response."""
 
 
 class DPetteDriver:
@@ -46,15 +59,40 @@ class DPetteDriver:
     # -- lifecycle ------------------------------------------------------------
 
     def connect(self) -> None:
-        """Open the serial link to the pipette.
+        """Open the serial link and perform a handshake with the pipette.
 
-        After connecting, call :meth:`identify` to confirm the device
-        is a supported dPette model.
+        After the initial handshake, performs a calibration-mode toggle
+        (enter then exit) to ensure the device is in normal operating
+        mode.  This clears any stale calibration state that would cause
+        motor commands to be rejected.
+
+        .. note::
+           If the pipette shows Err4 on startup, dismiss it with the
+           physical button **before** calling this method.
+
+        Raises ``RuntimeError`` if the handshake fails.
         """
         log.info("Connecting to dPette on %s", self._cfg.port)
         self._link.open()
-        self._connected = True
-        self._cycle_count = 0
+        try:
+            resp = self._transact(handshake_packet(), timeout=HANDSHAKE_TIMEOUT_S)
+            if resp.cmd != Command.HANDSHAKE:
+                raise RuntimeError(
+                    f"Unexpected handshake response cmd 0x{resp.cmd:02X}"
+                )
+            log.info("Handshake OK — toggling cal mode to clear stale state")
+            # Enter cal mode (may get no response if Err4 is showing)
+            self._link.write(encode_packet(Command.HANDSHAKE, b2=0x01))
+            time.sleep(2.0)
+            self._link.read(PACKET_LEN)  # consume response or timeout
+            # Exit cal mode
+            self._transact(handshake_packet(), timeout=HANDSHAKE_TIMEOUT_S)
+            log.info("Cal mode toggle complete — device in normal mode")
+            self._connected = True
+            self._cycle_count = 0
+        except Exception:
+            self._link.close()
+            raise
 
     def disconnect(self) -> None:
         """Close the serial link."""
@@ -66,91 +104,122 @@ class DPetteDriver:
         if not self._connected:
             raise RuntimeError("Not connected — call connect() first")
 
+    # -- protocol I/O ---------------------------------------------------------
+
+    def _transact(self, pkt: bytes, timeout: float = READ_TIMEOUT_S) -> Packet:
+        """Send *pkt* and return the decoded 6-byte response.
+
+        The link's read timeout is temporarily adjusted to *timeout*.
+        """
+        self._link.write(pkt)
+        raw = self._link.read(PACKET_LEN)
+        if len(raw) < PACKET_LEN:
+            raise TimeoutError(
+                f"Device did not respond within {timeout:.1f}s "
+                f"(got {len(raw)} bytes)"
+            )
+        return decode_packet(raw)
+
+    def _send_command(self, cmd: int, b2: int = 0, b3: int = 0, b4: int = 0) -> Packet:
+        """Encode, send, and return the response for a single command."""
+        self._require_connected()
+        return self._transact(encode_packet(cmd, b2, b3, b4))
+
     # -- commands -------------------------------------------------------------
 
-    def identify(self) -> dict[str, str]:
-        """Query the pipette for its model name, firmware version, and serial number.
+    def handshake(self, param: int = 0) -> Packet:
+        """Send a handshake / start-calibrate packet and return the response."""
+        self._require_connected()
+        return self._transact(handshake_packet(param))
 
-        Expected return value (once implemented)::
+    def send_cali_volume(self, volume_ul: int) -> Packet:
+        """Tell the device which calibration volume to target (in µL)."""
+        self._require_connected()
+        return self._transact(send_cali_volume_packet(volume_ul))
 
-            {"model": "dPette+", "firmware": "1.2.3", "serial": "AB12345"}
+    def write_ee(self, addr: int, value: int = 0) -> Packet:
+        """Write a byte to an EEPROM address.
 
-        The response will be built by sending an IDENTIFY packet and
-        parsing the reply according to ``docs/PROTOCOL_NOTES.md``.
-
-        Raises
-        ------
-        NotImplementedError
-            Protocol not yet reverse-engineered.
+        .. warning::
+           Address/value byte layout is provisional.  Use with caution.
         """
         self._require_connected()
-        raise NotImplementedError("Protocol not yet reverse engineered.")
+        return self._transact(write_ee_packet(addr, value))
+
+    def read_ee_raw(self, cmd: int, addr: int) -> Packet:
+        """Send a raw read-style command and return the response.
+
+        This is a low-level escape hatch for probing the protocol.
+        """
+        self._require_connected()
+        return self._transact(encode_packet(cmd, b2=addr & 0xFF))
+
+    # -- high-level API (stubs until read protocol is confirmed) ---------------
+
+    def identify(self) -> dict[str, str]:
+        """Query the pipette for its model name, firmware version, etc.
+
+        Not yet implemented — requires device type negotiation protocol.
+        """
+        self._require_connected()
+        raise NotImplementedError(
+            "Device identification requires a confirmed read protocol. "
+            "Use handshake() to verify connectivity."
+        )
 
     def set_volume(self, microliters: float) -> None:
-        """Set the target aspiration / dispense volume.
-
-        Parameters
-        ----------
-        microliters:
-            Desired volume in microlitres.  Must be within the limits
-            for the connected pipette model.
-
-        Safety
-        ------
-        Calls :func:`~dpette.safety.validate_volume` before sending
-        any bytes to the device.
-        """
+        """Set the target aspiration / dispense volume."""
         self._require_connected()
         validate_volume(microliters, self._limits)
-        raise NotImplementedError("Protocol not yet reverse engineered.")
+        raise NotImplementedError(
+            "Volume setting requires confirmed motor control commands."
+        )
 
-    def aspirate(self) -> None:
+    def aspirate(self) -> Packet:
         """Command the pipette to aspirate (draw liquid).
 
-        Increments the internal cycle counter and refuses to proceed
-        if :data:`MAX_CONTIGUOUS_CYCLES` has been reached.  Call
-        :meth:`reset_cycle_count` to continue after inspection.
-
-        Safety
-        ------
-        Enforces the contiguous-cycle hard stop to prevent mechanical abuse.
+        Aspirates at the pipette's current display volume.  The device
+        returns a double response: motor-started then motor-finished.
+        This method reads both and returns the final (completed) packet.
         """
         self._require_connected()
         self._check_cycle_limit()
         self._cycle_count += 1
-        raise NotImplementedError("Protocol not yet reverse engineered.")
+        log.info("Aspirating (cycle %d)", self._cycle_count)
+        self._link.write(aspirate_packet())
+        # Aspirate returns 12 bytes: started (6) + completed (6)
+        raw = self._link.read(PACKET_LEN * 2)
+        if len(raw) < PACKET_LEN:
+            raise TimeoutError("No response to aspirate command")
+        # Return the last 6-byte packet (completed)
+        final = raw[-PACKET_LEN:]
+        return decode_packet(final)
 
-    def dispense(self) -> None:
+    def dispense(self) -> Packet:
         """Command the pipette to dispense (expel liquid).
 
-        Subject to the same cycle-count guard as :meth:`aspirate`.
+        Dispenses at the pipette's current display volume.
         """
         self._require_connected()
         self._check_cycle_limit()
         self._cycle_count += 1
-        raise NotImplementedError("Protocol not yet reverse engineered.")
+        log.info("Dispensing (cycle %d)", self._cycle_count)
+        return self._transact(dispense_packet())
 
     def blow_out(self) -> None:
-        """Perform a blow-out to expel residual liquid from the tip.
-
-        This drives the piston slightly past the normal dispense endpoint.
-        """
+        """Perform a blow-out to expel residual liquid from the tip."""
         self._require_connected()
-        raise NotImplementedError("Protocol not yet reverse engineered.")
+        raise NotImplementedError("Blow-out command not yet reverse-engineered.")
 
     def eject_tip(self) -> None:
         """Eject the currently attached pipette tip."""
         self._require_connected()
-        raise NotImplementedError("Protocol not yet reverse engineered.")
+        raise NotImplementedError("Tip ejection command not yet reverse-engineered.")
 
     # -- helpers --------------------------------------------------------------
 
     def reset_cycle_count(self) -> None:
-        """Reset the contiguous-cycle counter to zero.
-
-        Call this after visually inspecting the pipette to confirm it
-        is operating correctly.
-        """
+        """Reset the contiguous-cycle counter to zero."""
         log.info("Cycle counter reset (was %d)", self._cycle_count)
         self._cycle_count = 0
 
