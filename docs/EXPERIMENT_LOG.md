@@ -396,6 +396,42 @@ between 30 and 300 µL was unmistakable.
 
 ---
 
+### EXP-031: PetteCali serial capture (via Parallels VM)
+
+**Tool:** Free Device Monitoring Studio on Windows 11 (Parallels),
+sniffing COM3 while PetteCali ran a full calibration + WriteData.
+**Captures:** `~/Documents/DMS Log Files/*.dmslog8`
+
+**CRITICAL FINDINGS — EEPROM read/write format:**
+
+Read: `FE A3 00 [ADDR] 00 [CHECKSUM]` — address in byte[3]!
+Write: `FE A4 00 [ADDR] [VALUE] [CHECKSUM]` — address in byte[3], value in byte[4]!
+
+All our prior EEPROM attempts failed because we put the address in byte[2].
+
+**PetteCali calibration sequence observed:**
+1. `FE A8 01 68 09 38` — device config/init
+2. `FE A0 00 00 00 A0` — status check (×2)
+3. `FE A3 00 80..AD` — read all EEPROM (46 addresses, each sent twice)
+4. `FE A5` — handshake
+5. `FE A6 03 E8` — set cal volume 100 µL (1000 ÷ 10)
+6. `FE A6 07 D0` — set cal volume 200 µL (2000 ÷ 10)
+7. `FE A6 0B B8` — set cal volume 300 µL (3000 ÷ 10)
+8. `FE A5` — handshake close
+
+**WriteData sequence:**
+- `FE A4 00 90..9F [VALUE]` — write k/b coefficients (seg1 + seg2)
+- `FE A0` — status check
+- `FE A3 00 80..AD` — re-read all EEPROM to verify
+- Each write sent twice (retry pattern)
+
+**WriteEE values captured (k=1.2268, b=0.0000):**
+- 0x90: 0x00, 0x91: 0x00, 0x92: 0x2F, 0x93: 0xEC (k bytes)
+- 0x94-0x97: all 0x00 (b bytes)
+- 0x98-0x9F: same pattern for seg2
+
+---
+
 ### Summary of confirmed working protocol
 
 ```
