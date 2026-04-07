@@ -21,6 +21,8 @@ from dpette.safety import SafetyError
 # Canned response bytes for mocking
 HANDSHAKE_RX = bytes.fromhex("fd a5 00 00 00 a5")
 CALI_VOL_RX = bytes.fromhex("fd a6 00 00 00 a6")
+ASPIRATE_RX_DOUBLE = bytes.fromhex("fd b3 00 00 00 b3 fd b3 01 00 00 b4")
+DISPENSE_RX = bytes.fromhex("fd b0 00 00 00 b0")
 
 
 @pytest.fixture()
@@ -48,20 +50,25 @@ def connected_driver(cfg: SerialConfig, mock_serial: MagicMock) -> DPetteDriver:
 
 
 class TestDriverRequiresConnection:
-    def test_identify_requires_connect(self, cfg: SerialConfig) -> None:
-        drv = DPetteDriver(cfg)
-        with pytest.raises(RuntimeError, match="Not connected"):
-            drv.identify()
-
     def test_aspirate_requires_connect(self, cfg: SerialConfig) -> None:
         drv = DPetteDriver(cfg)
         with pytest.raises(RuntimeError, match="Not connected"):
             drv.aspirate()
 
+    def test_dispense_requires_connect(self, cfg: SerialConfig) -> None:
+        drv = DPetteDriver(cfg)
+        with pytest.raises(RuntimeError, match="Not connected"):
+            drv.dispense()
+
     def test_handshake_requires_connect(self, cfg: SerialConfig) -> None:
         drv = DPetteDriver(cfg)
         with pytest.raises(RuntimeError, match="Not connected"):
             drv.handshake()
+
+    def test_eject_tip_requires_connect(self, cfg: SerialConfig) -> None:
+        drv = DPetteDriver(cfg)
+        with pytest.raises(RuntimeError, match="Not connected"):
+            drv.eject_tip()
 
 
 class TestConnect:
@@ -77,20 +84,55 @@ class TestConnect:
     ) -> None:
         drv = DPetteDriver(cfg)
         drv.connect()
-        # Should have written: handshake, then B0 prime
         writes = [call[0][0] for call in mock_serial.write.call_args_list]
         assert len(writes) == 2
         assert writes[0] == bytes.fromhex("fe a5 00 00 00 a5")  # handshake
         assert writes[1] == bytes.fromhex("fe b0 01 00 00 b1")  # B0 prime
 
-    def test_connect_timeout_closes_port(
-        self, cfg: SerialConfig, mock_serial: MagicMock
-    ) -> None:
-        mock_serial.read.return_value = b""  # no response
-        drv = DPetteDriver(cfg)
-        with pytest.raises(TimeoutError):
+    def test_connect_stub_mode_on_failure(self, cfg: SerialConfig) -> None:
+        """Connection failure enters stub mode instead of raising."""
+        with patch("dpette.serial_link.serial.Serial", side_effect=OSError("no port")):
+            drv = DPetteDriver(cfg)
             drv.connect()
-        mock_serial.close.assert_called()
+            assert drv.stub_mode
+            assert drv._connected
+
+
+class TestStubMode:
+    """Stub mode: all methods succeed without hardware."""
+
+    def test_stub_aspirate(self, cfg: SerialConfig) -> None:
+        with patch("dpette.serial_link.serial.Serial", side_effect=OSError):
+            drv = DPetteDriver(cfg)
+            drv.connect()
+            result = drv.aspirate(100.0)
+            assert result is None
+
+    def test_stub_dispense(self, cfg: SerialConfig) -> None:
+        with patch("dpette.serial_link.serial.Serial", side_effect=OSError):
+            drv = DPetteDriver(cfg)
+            drv.connect()
+            result = drv.dispense(100.0)
+            assert result is None
+
+    def test_stub_eject_tip(self, cfg: SerialConfig) -> None:
+        with patch("dpette.serial_link.serial.Serial", side_effect=OSError):
+            drv = DPetteDriver(cfg)
+            drv.connect()
+            drv.eject_tip()  # should not raise
+
+    def test_stub_set_volume(self, cfg: SerialConfig) -> None:
+        with patch("dpette.serial_link.serial.Serial", side_effect=OSError):
+            drv = DPetteDriver(cfg)
+            drv.connect()
+            result = drv.set_volume(200.0)
+            assert result is None
+
+    def test_stub_disconnect(self, cfg: SerialConfig) -> None:
+        with patch("dpette.serial_link.serial.Serial", side_effect=OSError):
+            drv = DPetteDriver(cfg)
+            drv.connect()
+            drv.disconnect()  # should not raise
 
 
 class TestHandshake:
@@ -99,6 +141,7 @@ class TestHandshake:
     ) -> None:
         mock_serial.read.return_value = HANDSHAKE_RX
         pkt = connected_driver.handshake()
+        assert pkt is not None
         assert pkt.cmd == Command.HANDSHAKE
 
 
@@ -108,13 +151,10 @@ class TestSendCaliVolume:
     ) -> None:
         mock_serial.read.return_value = CALI_VOL_RX
         pkt = connected_driver.send_cali_volume(1000)
+        assert pkt is not None
         assert pkt.cmd == Command.SEND_CALI_VOLUME
         written = mock_serial.write.call_args[0][0]
         assert written == bytes.fromhex("fe a6 27 10 00 dd")
-
-
-ASPIRATE_RX_DOUBLE = bytes.fromhex("fd b3 00 00 00 b3 fd b3 01 00 00 b4")
-DISPENSE_RX = bytes.fromhex("fd b0 00 00 00 b0")
 
 
 class TestAspirate:
@@ -131,8 +171,16 @@ class TestAspirate:
     ) -> None:
         mock_serial.read.return_value = ASPIRATE_RX_DOUBLE
         pkt = connected_driver.aspirate()
+        assert pkt is not None
         assert pkt.cmd == Command.ASPIRATE
-        assert pkt.b2 == 0x01  # completed
+        assert pkt.b2 == 0x01
+
+    def test_aspirate_with_volume_param(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        mock_serial.read.return_value = ASPIRATE_RX_DOUBLE
+        pkt = connected_driver.aspirate(100.0)
+        assert pkt is not None
 
     def test_aspirate_increments_cycle_count(
         self, connected_driver: DPetteDriver, mock_serial: MagicMock
@@ -156,10 +204,27 @@ class TestDispense:
     ) -> None:
         mock_serial.read.return_value = DISPENSE_RX
         pkt = connected_driver.dispense()
+        assert pkt is not None
         assert pkt.cmd == Command.DISPENSE
 
+    def test_dispense_with_volume_param(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        mock_serial.read.return_value = DISPENSE_RX
+        pkt = connected_driver.dispense(100.0)
+        assert pkt is not None
 
-class TestSafetyIntegration:
+
+class TestSetVolume:
+    def test_set_volume_sends_a6(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        mock_serial.read.return_value = CALI_VOL_RX
+        pkt = connected_driver.set_volume(200.0)
+        assert pkt is not None
+        written = mock_serial.write.call_args[0][0]
+        assert written == bytes.fromhex("fe a6 07 d0 00 7d")
+
     def test_negative_volume_rejected(self, connected_driver: DPetteDriver) -> None:
         with pytest.raises(SafetyError, match="positive"):
             connected_driver.set_volume(-5.0)
@@ -167,6 +232,22 @@ class TestSafetyIntegration:
     def test_excessive_volume_rejected(self, connected_driver: DPetteDriver) -> None:
         with pytest.raises(SafetyError, match="exceeds maximum"):
             connected_driver.set_volume(99999.0)
+
+
+class TestEjectTip:
+    def test_eject_tip_raises_not_implemented(
+        self, connected_driver: DPetteDriver
+    ) -> None:
+        with pytest.raises(NotImplementedError, match="BSS138"):
+            connected_driver.eject_tip()
+
+
+class TestTriggerButton:
+    def test_trigger_button_raises_not_implemented(
+        self, connected_driver: DPetteDriver
+    ) -> None:
+        with pytest.raises(NotImplementedError, match="BSS138"):
+            connected_driver.trigger_button()
 
 
 class TestCycleLimit:
