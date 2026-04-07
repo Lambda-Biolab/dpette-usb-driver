@@ -104,20 +104,102 @@ Tested at 30, 100, and 300 µL — volumes match A6 setting exactly.
 > software for clinical or safety-critical applications without independent
 > validation.
 
-## Quickstart
+## Installation
 
 ```bash
-# Clone and set up
+# From source (recommended during alpha)
 git clone https://github.com/Lambda-Biolab/dpette-usb-driver.git
 cd dpette-usb-driver
-make init
+uv pip install -e .
 
-# Connect pipette via USB
-# On macOS: /dev/cu.usbserial-0001
-# On Linux: /dev/ttyUSB0
+# Or install directly from GitHub
+uv pip install git+https://github.com/Lambda-Biolab/dpette-usb-driver.git
+```
 
-# Run tests (no hardware needed)
-make test
+## Quickstart
+
+### 1. Connect the pipette
+
+Plug the dPette into your computer via USB.  It should appear as:
+- **macOS:** `/dev/cu.usbserial-0001`
+- **Linux:** `/dev/ttyUSB0`
+
+If the pipette shows Err4 on the display, hold the operation button
+to dismiss it.
+
+### 2. Basic aspirate/dispense (at dial volume)
+
+```python
+from dpette.config import SerialConfig
+from dpette.driver import DPetteDriver
+
+cfg = SerialConfig(port="/dev/cu.usbserial-0001")  # adjust for your OS
+driver = DPetteDriver(cfg)
+
+driver.connect()       # handshake + prime
+driver.aspirate()      # aspirates at the physical dial volume
+driver.dispense()      # dispenses
+driver.disconnect()
+```
+
+### 3. Volume-controlled pipetting (requires button MOSFET)
+
+```python
+from dpette.protocol import Command, encode_packet, send_cali_volume_packet
+from dpette.serial_link import SerialLink
+from dpette.config import SerialConfig
+
+link = SerialLink(SerialConfig(port="/dev/cu.usbserial-0001"))
+link.open()
+
+# Handshake
+link.write(encode_packet(Command.HANDSHAKE))
+link.read(6)
+
+# Enter cal mode (via MOSFET button press — NOT serial A5 b2=1)
+trigger_button()  # your MOSFET GPIO function
+
+# Set volume and aspirate
+link.write(send_cali_volume_packet(200))  # 200 µL
+link.read(6)
+trigger_button()  # aspirates 200 µL
+
+# Dispense via serial
+link.write(encode_packet(Command.DISPENSE, b2=0x01))
+link.read(6)
+
+# Change volume and repeat
+link.write(send_cali_volume_packet(50))   # 50 µL
+link.read(6)
+trigger_button()  # aspirates 50 µL
+```
+
+See `examples/` for complete working scripts.
+
+### 4. Read EEPROM data
+
+```python
+from dpette.protocol import read_ee_packet, encode_packet, Command
+from dpette.serial_link import SerialLink
+from dpette.config import SerialConfig
+
+link = SerialLink(SerialConfig(port="/dev/cu.usbserial-0001"))
+link.open()
+link.write(encode_packet(Command.HANDSHAKE))
+link.read(6)
+
+# Read firmware version (addresses 0x60-0x67)
+for addr in range(0x60, 0x68):
+    link.write(read_ee_packet(addr))
+    resp = link.read(6)
+    print(chr(resp[2]), end="")  # prints "Ver4.2.3"
+```
+
+### 5. Run tests (no hardware needed)
+
+```bash
+make test    # or: pytest
+make lint    # or: ruff check src/ tests/ && mypy src/
 ```
 
 ## Development
