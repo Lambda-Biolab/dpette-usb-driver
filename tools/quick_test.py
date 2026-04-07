@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Full CMD scan in cal mode with b2=0x00 (expert Q3).
+"""Test post-button-aspirate state in cal mode.
 
-Previous scan used b2=0x01. Some commands behave differently at b2=0x00.
-Also tests b2=0x02, 0x03, 0xFF for responding commands.
+Q1: After physical button aspirate, what commands work?
+Q2: Can B0 dispense? Does B3 work? Is device in cal or normal mode?
 
-Must dismiss Err4 first. WATCH FOR MOTOR.
 Logs to captures/live_log.txt
 """
 
@@ -38,7 +37,7 @@ ser = serial.Serial(
     bytesize=8,
     parity="N",
     stopbits=1,
-    timeout=0.5,
+    timeout=3.0,
 )
 
 
@@ -47,7 +46,7 @@ def pkt(cmd: int, b2: int = 0, b3: int = 0, b4: int = 0) -> bytes:
     return bytes([0xFE, cmd, b2, b3, b4, ck])
 
 
-def sr(p: bytes, wait: float = 0.3) -> bytes:
+def sr(p: bytes, wait: float = 0.5) -> bytes:
     ser.reset_input_buffer()
     ser.write(p)
     ser.flush()
@@ -55,71 +54,109 @@ def sr(p: bytes, wait: float = 0.3) -> bytes:
     return ser.read(64)
 
 
-log("=== CMD SCAN b2=0x00 IN CAL MODE ===")
-log("WATCH FOR MOTOR MOVEMENT!")
+log("=== POST-BUTTON-ASPIRATE STATE TEST ===")
 log("")
 
-# Setup
+# Setup: enter cal mode, set A6=300
 log_input("[Setup] Dismiss Err4, press ENTER: ")
-ser.timeout = 3.0
 r = sr(pkt(0xA5), wait=1.0)
 log(f"  Handshake: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
 r = sr(pkt(0xA5, 0x01), wait=3.0)
 log(f"  Enter cal: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
 log_input("  Dismiss Err4, wait for homing. Press ENTER: ")
 time.sleep(5.0)
+
 val = 300 * 10
 r = sr(pkt(0xA6, (val >> 8) & 0xFF, val & 0xFF), wait=0.5)
 log(f"  A6=300: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
 log("")
 
-ser.timeout = 0.5
-
-# Scan 1: all 256 CMDs with b2=0x00
-log("SCAN 1: 0x00-0xFF with b2=0x00 (skipping A5)")
-log("Responding commands:")
-known_b1 = {}  # store b2=0x01 responses for comparison
-for cmd in range(256):
-    if cmd == 0xA5:
-        continue
-    r = sr(pkt(cmd, 0x00), wait=0.1)
-    if r:
-        log(f"  0x{cmd:02X} b2=00: ({len(r)}b) {r.hex(' ')}")
-
-log("")
-log_input("Did ANY motor movement happen during scan 1? ")
+# Step 1: Physical button aspirate
+log("=" * 50)
+log("STEP 1: Press the PHYSICAL BUTTON to aspirate")
+log("(tip in water, A6 is set to 300)")
+log("=" * 50)
+log_input("Press the button now, then press ENTER here: ")
+note = log_input("  Did it aspirate? How much? ")
+log(f"  >> {note}")
 log("")
 
-# Scan 2: responding commands with b2=0x02, 0x03, 0xFF
-log("SCAN 2: Known responding CMDs with b2=0x02, 0x03, 0xFF")
-responding = [
-    0xA0,
-    0xA1,
-    0xA2,
-    0xA3,
-    0xA4,
-    0xA6,
-    0xA7,
-    0xA8,
-    0xB0,
-    0xB1,
-    0xB2,
-    0xB3,
-    0xB4,
-    0xB5,
-    0xB6,
-    0xB7,
-]
+# Step 2: Check serial state immediately after button aspirate
+log("=" * 50)
+log("STEP 2: Check serial commands after button aspirate")
+log("=" * 50)
 
-for b2 in [0x02, 0x03, 0xFF]:
-    log(f"  --- b2=0x{b2:02X} ---")
-    for cmd in responding:
-        r = sr(pkt(cmd, b2), wait=0.15)
-        if r:
-            log(f"    0x{cmd:02X}: ({len(r)}b) {r.hex(' ')}")
+# Try B0 dispense
+log("  Trying B0 dispense...")
+r = sr(pkt(0xB0, 0x01), wait=2.0)
+log(f"  B0: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+note = log_input("  Did B0 dispense? ")
+log(f"  >> {note}")
+
+# Try B3 aspirate
+log("  Trying B3 aspirate...")
+r = sr(pkt(0xB3, 0x01), wait=2.0)
+ok = len(r) >= 12
+log(
+    f"  B3: ({len(r)}b) {r.hex(' ') if r else '(none)'}  Motor {'OK' if ok else 'REJECTED'}"
+)
+note = log_input("  Did B3 work? ")
+log(f"  >> {note}")
+
+# Try A6 to change volume
+log("  Trying A6=30...")
+val2 = 30 * 10
+r = sr(pkt(0xA6, (val2 >> 8) & 0xFF, val2 & 0xFF), wait=0.5)
+log(f"  A6=30: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+note = log_input("  Display changed to 30? ")
+log(f"  >> {note}")
+log("")
+
+# Step 3: Second button aspirate at new volume
+log("=" * 50)
+log("STEP 3: Press button again (A6 now 30)")
+log("=" * 50)
+log_input("Tip in water, press button, then ENTER: ")
+note = log_input("  How much? (should be ~30 if A6 works): ")
+log(f"  >> {note}")
+log("")
+
+# Step 4: Can we do a full cycle? A6→button→B0→A6→button
+log("=" * 50)
+log("STEP 4: Full cycle — A6=300→button→B0→A6=100→button")
+log("=" * 50)
+
+val3 = 300 * 10
+r = sr(pkt(0xA6, (val3 >> 8) & 0xFF, val3 & 0xFF), wait=0.5)
+log(f"  A6=300: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+log_input("  Tip in water, press button to aspirate, then ENTER: ")
+note = log_input("  How much? ")
+log(f"  >> aspirate 300: {note}")
+
+log("  B0 dispense...")
+r = sr(pkt(0xB0, 0x01), wait=2.0)
+log(f"  B0: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+note = log_input("  Dispensed? ")
+log(f"  >> dispense: {note}")
+
+val4 = 100 * 10
+r = sr(pkt(0xA6, (val4 >> 8) & 0xFF, val4 & 0xFF), wait=0.5)
+log(f"  A6=100: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+log_input("  Tip in water, press button to aspirate, then ENTER: ")
+note = log_input("  How much? (should be ~100): ")
+log(f"  >> aspirate 100: {note}")
+
+log("  B0 dispense...")
+r = sr(pkt(0xB0, 0x01), wait=2.0)
+log(f"  B0: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+note = log_input("  Dispensed? ")
+log(f"  >> dispense: {note}")
 
 log("")
-log_input("Did ANY motor movement happen during scan 2? ")
+log("SUMMARY: Does the full cycle work?")
+log("A6 set volume → button aspirate → B0 dispense → repeat")
+answer = log_input("Answer: ")
+log(f">> {answer}")
 
 ser.close()
 log("\nDone.")

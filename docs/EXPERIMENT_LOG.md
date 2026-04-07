@@ -602,6 +602,37 @@ for all responding commands in cal mode.
 
 ---
 
+### EXP-048: Full automation cycle — A6→button→B0→repeat
+
+**The definitive automation test.** In cal mode, tested the complete
+cycle with volume changes between aspirations.
+
+| Step | Method | Volume | Result |
+|------|--------|--------|--------|
+| A6=300 | serial | — | display changed ✓ |
+| Aspirate | physical button | 300 µL | ✅ correct |
+| Dispense | B0 serial | — | ✅ dispensed |
+| A6=100 | serial | — | display changed ✓ |
+| Aspirate | physical button | 100 µL | ✅ correct |
+| Dispense | B0 serial | — | ✅ dispensed |
+
+**Also confirmed:**
+- B0 dispense works immediately after button aspirate in cal mode ✓
+- A6 can change volume between cycles without exiting cal mode ✓
+- B3 is rejected in cal mode (as expected) ✓
+- No need to exit/re-enter cal mode between cycles ✓
+
+**Confirmed automation flow (requires MOSFET on button):**
+```
+Enter cal mode (once) → for each cycle:
+  A6 set volume (serial) → button press (MOSFET) → B0 dispense (serial)
+```
+
+This is the architecture for a $140 fully programmable pipette:
+$130 dPette + BSS138 MOSFET ($0.10) + RP2040 ($4) + 2 solder joints.
+
+---
+
 ### FINAL CONCLUSION: Serial-only volume control is NOT possible
 
 After 44 experiments, every serial approach has been exhausted:
