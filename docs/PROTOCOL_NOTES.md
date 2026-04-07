@@ -117,28 +117,30 @@ RX: [FD] [A6] [00]     [00]     [00] [A6]
 - Source: FUN_140069a10 disassembly; calling code at line 12254
   shows `iVar3 = param_2 * 10`
 
-**WriteEE (0xA4):**
+**WriteEE (0xA4) — CONFIRMED from PetteCali capture:**
 
 ```
-TX: [FE] [A4] [addr/val_hi] [addr/val_lo] [value] [cksum]
-RX: [FD] [A4] [00]          [00]           [00]    [A4]
+TX: [FE] [A4] [00] [ADDR] [VALUE] [cksum]
+RX: [FD] [A4] [??] [00]   [00]   [cksum]
 ```
 
-- Address and value encoding TBD — need write-then-read test to confirm
-- Source: FUN_140069730 disassembly; takes params (addr, byte_index, value)
-- Live confirmed: device ACKs with `fd a4 00 00 00 a4`
+- **Address in byte[3], value in byte[4]** (confirmed from serial capture)
+- Byte[2] is always 0x00 in observed writes
+- PetteCali sends each write twice (retry pattern)
+- Source: serial capture of PetteCali WriteData session (EXP-031)
 
-**Unknown command (0xA3):**
+**ReadEE (0xA3) — CONFIRMED from PetteCali capture:**
 
 ```
-TX: [FE] [A3] [b2] [b3] [b4] [cksum]
-RX: [FD] [A3] [??] [00] [00] [cksum]
+TX: [FE] [A3] [00] [ADDR] [00] [cksum]
+RX: [FD] [A3] [VALUE] [00] [00] [cksum]
 ```
 
-- Response byte[2] varies (observed 0x00 and 0xFF in different states)
-- The PetteCali receive handler (FUN_14001d850 line 14395) checks for
-  0xA3 in byte[1] of RESPONSES and enters a calibration data parser
-- May be used by the device to send calibration data asynchronously
+- **Address in byte[3]** (NOT byte[2] — this is why earlier reads failed)
+- Byte[2] of TX is always 0x00
+- Response byte[2] contains the EEPROM value
+- PetteCali reads addresses 0x80 through 0xAD sequentially, each twice
+- Source: serial capture of PetteCali calibration session (EXP-031)
 
 **Aspirate (0xB3) — CONFIRMED live, motor movement:**
 
