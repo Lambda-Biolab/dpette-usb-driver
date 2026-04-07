@@ -514,6 +514,29 @@ serial. For full automation, need either:
 
 ---
 
+### EXP-040: Interactive prime+B3 isolation in cal mode
+
+**Device:** 30-300 µL dPette, in cal mode, A6=100 µL
+**Method:** Sent each of 26 prime commands (B0-B7 b2=0/1, A0/A3/A4/A6/A7
+b2=0/1) one at a time with user observation, followed by B3 b2=1.
+**Result:** ❌ Only B0 b2=1 (test 1/26) caused motor movement — the same
+small fixed priming, not volume-controlled. B3 was rejected after every
+prime (6-byte response, no motor).
+**Conclusion:** Definitive — no serial command enables B3 aspirate in
+calibration mode. The physical button is the ONLY way to trigger
+aspiration at the A6-set volume.
+
+### EXP-041: A7 deep dive in cal mode
+
+**Device:** 30-300 µL dPette, in cal mode
+**Tested:** A7 with b2=0/1/2/3/FF, and with volume payloads (100×10,
+300×10) in b3/b4
+**Result:** ❌ No motor movement from any A7 variant. All returned
+`fd a7 00 00 00 a7`. Earlier motor movement attributed to A7 was
+residual from B0 priming in the fast scan.
+
+---
+
 ### EXP-036: Complement pair write to 0x42/0x43
 
 **Hypothesis:** Err4 flag is a byte+complement pair at 0x42 (0x00) / 0x43 (0xFF).

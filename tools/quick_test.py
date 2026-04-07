@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Test physical button aspirate at A6-set volume in cal mode.
+"""Interactive: isolate which prime+B3 moves motor in cal mode.
 
-Enter cal mode, set volume with A6, then YOU press the physical button.
-Compare water levels at 30 vs 300 µL.
+Each command waits for your observation before continuing.
+Must already be in cal mode with A6 volume set.
 
 Logs to captures/live_log.txt
 
@@ -57,86 +57,77 @@ def sr(p: bytes, wait: float = 0.5) -> bytes:
     return ser.read(64)
 
 
-log("=== PHYSICAL BUTTON ASPIRATE AT A6 VOLUME ===")
-log("In cal mode, A6 sets the display volume.")
-log("YOU press the pipette button to aspirate.")
-log("This is exactly what PetteCali expects the user to do.")
+log("=== ISOLATE MOTOR MOVEMENT: ONE AT A TIME ===")
+log("Must be in cal mode with A6 volume set.")
+log("Each step: sends PRIME, waits, then sends B3.")
+log("You observe motor between each command.")
 log("")
 
-# Step 1: Handshake
+# Setup
 log_input("[1] Dismiss Err4, press ENTER: ")
 r = sr(pkt(0xA5), wait=1.0)
 log(f"  Handshake: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
 
-# Step 2: Enter cal mode
-log("")
 log("[2] Entering cal mode...")
 r = sr(pkt(0xA5, 0x01), wait=3.0)
 log(f"  A5 b2=1: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-log_input("  Dismiss Err4, wait for homing to finish. Press ENTER: ")
+log_input("  Dismiss Err4, wait for homing. Press ENTER: ")
 time.sleep(3.0)
 
-# Round 1: A6=30
+log("[3] A6=100 µL")
+val = 100 * 10
+r = sr(pkt(0xA6, (val >> 8) & 0xFF, val & 0xFF), wait=0.5)
+log(f"  A6: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
 log("")
-log("=" * 50)
-log("ROUND 1: A6 = 30 µL")
-log("=" * 50)
-val = 30 * 10
-hi = (val >> 8) & 0xFF
-lo = val & 0xFF
-r = sr(pkt(0xA6, hi, lo), wait=0.5)
-log(f"  A6=30: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-note = log_input("  Display shows 30? ")
-log(f"  >> {note}")
-log("")
-log("  Dip tip in water.")
-log("  NOW PRESS THE PHYSICAL ASPIRATE BUTTON on the pipette.")
-note = log_input("  How much water did it draw? ")
-log(f"  >> {note}")
-log_input("  Dispense manually (press button again). Press ENTER when done: ")
 
-# Round 2: A6=300
-log("")
-log("=" * 50)
-log("ROUND 2: A6 = 300 µL")
-log("=" * 50)
-val = 300 * 10
-hi = (val >> 8) & 0xFF
-lo = val & 0xFF
-r = sr(pkt(0xA6, hi, lo), wait=0.5)
-log(f"  A6=300: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-note = log_input("  Display shows 300? ")
-log(f"  >> {note}")
-log("")
-log("  Dip tip in water.")
-log("  NOW PRESS THE PHYSICAL ASPIRATE BUTTON on the pipette.")
-note = log_input("  How much water did it draw? ")
-log(f"  >> {note}")
-log_input("  Dispense manually. Press ENTER when done: ")
+primes = [
+    ("B0 b2=1", 0xB0, 0x01),
+    ("B1 b2=1", 0xB1, 0x01),
+    ("B2 b2=1", 0xB2, 0x01),
+    ("B3 b2=1", 0xB3, 0x01),
+    ("B4 b2=1", 0xB4, 0x01),
+    ("B5 b2=1", 0xB5, 0x01),
+    ("B6 b2=1", 0xB6, 0x01),
+    ("B7 b2=1", 0xB7, 0x01),
+    ("B0 b2=0", 0xB0, 0x00),
+    ("B1 b2=0", 0xB1, 0x00),
+    ("B2 b2=0", 0xB2, 0x00),
+    ("B3 b2=0", 0xB3, 0x00),
+    ("B4 b2=0", 0xB4, 0x00),
+    ("B5 b2=0", 0xB5, 0x00),
+    ("B6 b2=0", 0xB6, 0x00),
+    ("B7 b2=0", 0xB7, 0x00),
+    ("A0 b2=0", 0xA0, 0x00),
+    ("A0 b2=1", 0xA0, 0x01),
+    ("A3 b2=0", 0xA3, 0x00),
+    ("A3 b2=1", 0xA3, 0x01),
+    ("A4 b2=0", 0xA4, 0x00),
+    ("A4 b2=1", 0xA4, 0x01),
+    ("A6 b2=0", 0xA6, 0x00),
+    ("A6 b2=1", 0xA6, 0x01),
+    ("A7 b2=0", 0xA7, 0x00),
+    ("A7 b2=1", 0xA7, 0x01),
+]
 
-# Round 3: A6=30 again to confirm
-log("")
-log("=" * 50)
-log("ROUND 3: A6 = 30 µL (confirm)")
-log("=" * 50)
-val = 30 * 10
-hi = (val >> 8) & 0xFF
-lo = val & 0xFF
-r = sr(pkt(0xA6, hi, lo), wait=0.5)
-log(f"  A6=30: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-note = log_input("  Display shows 30? ")
-log(f"  >> {note}")
-log("")
-log("  Dip tip in water.")
-log("  PRESS THE PHYSICAL BUTTON.")
-note = log_input("  How much water? ")
-log(f"  >> {note}")
+for i, (label, cmd, b2) in enumerate(primes):
+    log(f"--- [{i+1}/{len(primes)}] PRIME: {label} ---")
+    log_input("  Press ENTER to send prime: ")
+    p = pkt(cmd, b2)
+    r = sr(p, wait=1.0)
+    log(f"  Prime TX: {p.hex(' ')}")
+    log(f"  Prime RX: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+    prime_note = log_input("  Motor moved on PRIME? (yes/no): ")
+    log(f"  >> prime: {prime_note}")
 
-log("")
-log("Was there a clear difference between 30 and 300?")
-answer = log_input("Answer: ")
-log(f">> {answer}")
+    log_input("  Press ENTER to send B3: ")
+    r = sr(pkt(0xB3, 0x01), wait=2.0)
+    ok = len(r) >= 12
+    log(f"  B3 RX: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+    log(f"  B3 Motor {'OK <<<' if ok else 'rejected'}")
+    b3_note = log_input("  Motor moved on B3? (yes/no): ")
+    log(f"  >> B3: {b3_note}")
+    log("")
 
 ser.close()
-log("\nDone.")
+log("Done.")
 _log.close()
