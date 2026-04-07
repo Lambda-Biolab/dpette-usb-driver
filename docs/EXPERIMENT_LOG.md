@@ -514,6 +514,58 @@ serial. For full automation, need either:
 
 ---
 
+### EXP-042: Full 0x00-0xFF CMD scan in calibration mode
+
+**Device:** 30-300 µL dPette, in cal mode, A6=100 µL
+**Result:** Same 16 commands respond as in normal mode. No cal-mode-only
+commands exist. No motor movement during scan except B0 priming.
+
+---
+
+### EXP-043: B0 payload, b2 variants, rapid-fire, A6 encoding in cal mode
+
+**B0 payload in cal mode:** b3/b4 ignored — all drew ~30 µL regardless
+of volume encoding (30/100/300 µL×10).
+
+**B0 b2 variants:** b2=1,2,3 all move motor (same fixed amount).
+b2=4,5,FF do nothing. b2=2 and b2=3 are equivalent to b2=1.
+
+**Rapid-fire B0:** Five B0 commands did NOT accumulate steps. Same
+amount as single B0.
+
+**Raw A6 encoding:** A6 with 0x012C (300 raw) displayed "30" — confirms
+A6 always divides by 10. B0 amount unchanged.
+
+---
+
+### EXP-044: B0 b2=1/2/3 at different A6 volumes in cal mode
+
+**Tested:** B0 b2=1, b2=2, b2=3 each at A6=30 and A6=300 µL.
+**Result:** ❌ All six combinations drew the same fixed amount (~30 µL).
+None of the b2 variants are volume-controlled. B0 in cal mode is always
+a fixed priming cycle regardless of A6 volume or b2 value.
+
+---
+
+### FINAL CONCLUSION: Serial-only volume control is NOT possible
+
+After 44 experiments, every serial approach has been exhausted:
+- B3 aspirate: rejected in cal mode (every prime tried)
+- B0 in cal mode: fixed priming (b2=1/2/3 all same, payload ignored)
+- A6: changes display only, not motor travel
+- Full CMD scan: no undiscovered commands in cal mode
+- EEPROM k writes: require reboot (triggers Err4)
+
+**Volume-controlled aspiration requires the physical button press.**
+A6 (serial) sets the target volume, physical button triggers aspiration
+at that volume. This is a firmware design — the button GPIO ISR reads
+the A6 value, serial motor commands do not.
+
+**For automation:** servo/solenoid on button, RP2040 GPIO MitM,
+or firmware patch required.
+
+---
+
 ### EXP-040: Interactive prime+B3 isolation in cal mode
 
 **Device:** 30-300 µL dPette, in cal mode, A6=100 µL
