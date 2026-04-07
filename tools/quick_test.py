@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
-"""Test if changing k coefficient in EEPROM changes aspiration volume.
+"""Test B0→B3 aspirate inside calibration mode with A6 volume.
 
-Reads current k, writes a modified k, aspirates, then RESTORES original.
+Enter cal mode, set volume with A6, B0 prime, B3 aspirate.
+Tests two different volumes to see if amount changes.
+
+Dismiss Err4 before running. Tip on, water ready.
 Logs to captures/live_log.txt
+
+Run directly:
+    python tools/quick_test.py
 """
 
 import time
@@ -52,107 +58,124 @@ def sr(p: bytes, wait: float = 0.5) -> bytes:
     return ser.read(64)
 
 
-def read_ee(addr: int) -> int:
-    r = sr(pkt(0xA3, 0x00, addr), wait=0.3)
-    return r[2] if len(r) >= 3 else -1
-
-
-def write_ee(addr: int, val: int) -> None:
-    sr(pkt(0xA4, 0x00, addr, val), wait=0.3)
-
-
-log("=== EEPROM K COEFFICIENT VOLUME TEST ===")
-log("Dial should be at 300. HANDS OFF during aspirate.")
-log("We will modify k, aspirate, then RESTORE original k.")
+log("=== B0→B3 IN CALIBRATION MODE WITH A6 VOLUME ===")
+log("Dismiss Err4 first. Tip on, water ready.")
 log("")
 
-dial = log_input("What volume is the dial set to? ")
+# Step 1: Handshake
+log_input("[1] Dismiss Err4, press ENTER: ")
+r = sr(pkt(0xA5), wait=1.0)
+log(f"  Handshake: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
 
-# Handshake + prime
-sr(pkt(0xA5), wait=1.0)
-sr(pkt(0xB0, 0x01), wait=2.0)
-log("Handshake + prime done")
-
-# Read current k (4 bytes at 0x90-0x93) and b (4 bytes at 0x94-0x97)
-# Also seg2 at 0x98-0x9B, 0x9C-0x9F
+# Step 2: Enter cal mode
 log("")
-log("Reading current calibration:")
-orig = {}
-for addr in range(0x90, 0xA0):
-    val = read_ee(addr)
-    orig[addr] = val
-    log(f"  0x{addr:02X}: 0x{val:02X}")
+log("[2] Entering cal mode...")
+r = sr(pkt(0xA5, 0x01), wait=3.0)
+log(f"  A5 b2=1: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+log_input("  Dismiss Err4 if showing. Press ENTER when cal menu shows: ")
 
+# Wait for any homing cycle to finish
+log("  Waiting 5s for homing cycle...")
+time.sleep(5.0)
+
+# Step 3: Set volume to 30 µL with A6
 log("")
+log("[3] Setting A6=30 µL")
+val = 30 * 10
+hi = (val >> 8) & 0xFF
+lo = val & 0xFF
+r = sr(pkt(0xA6, hi, lo), wait=0.5)
+log(f"  A6=30: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+note = log_input("  Does display show 30? ")
+log(f"  >> {note}")
 
-# TEST 1: Baseline aspirate with original k
-log_input("TEST 1: Baseline with original k. Tip in water, ENTER: ")
+# Step 4: B0 prime in cal mode
+log("")
+log("[4] B0 prime in cal mode")
+r = sr(pkt(0xB0, 0x01), wait=2.0)
+log(f"  B0: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+note = log_input("  Motor moved? ")
+log(f"  >> {note}")
+
+# Step 5: B3 aspirate in cal mode
+log("")
+log("[5] B3 aspirate in cal mode — tip in water, HANDS OFF")
+log_input("  Press ENTER: ")
 r = sr(pkt(0xB3, 0x01), wait=3.0)
 ok = len(r) >= 12
-log(f"  B3: ({len(r)}b) Motor {'OK' if ok else 'REJECTED'}")
+log(f"  B3: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+log(f"  Motor {'OK' if ok else 'REJECTED'}")
 if ok:
-    amount = log_input(f"  How much water? (dial={dial}): ")
-    log(f"  >> {amount}")
+    note = log_input("  How much water? (expecting ~30): ")
+    log(f"  >> {note}")
+    log_input("  Dispense over cup. Press ENTER: ")
+    sr(pkt(0xB0, 0x01), wait=2.0)
+    log("  Dispensed")
+
+# Step 6: Now change to 300 µL
+log("")
+log("[6] Setting A6=300 µL (still in cal mode)")
+val = 300 * 10
+hi = (val >> 8) & 0xFF
+lo = val & 0xFF
+r = sr(pkt(0xA6, hi, lo), wait=0.5)
+log(f"  A6=300: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+note = log_input("  Does display show 300? ")
+log(f"  >> {note}")
+
+# Step 7: B0 prime again
+log("")
+log("[7] B0 prime")
+r = sr(pkt(0xB0, 0x01), wait=2.0)
+log(f"  B0: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+
+# Step 8: B3 aspirate at 300
+log("")
+log("[8] B3 aspirate — tip in water, HANDS OFF")
+log_input("  Press ENTER: ")
+r = sr(pkt(0xB3, 0x01), wait=3.0)
+ok = len(r) >= 12
+log(f"  B3: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+log(f"  Motor {'OK' if ok else 'REJECTED'}")
+if ok:
+    note = log_input("  How much water? (expecting ~300): ")
+    log(f"  >> {note}")
+    log_input("  Dispense over cup. Press ENTER: ")
+    sr(pkt(0xB0, 0x01), wait=2.0)
+    log("  Dispensed")
+
+# Step 9: Back to 30 to confirm
+log("")
+log("[9] Setting A6=30 µL again")
+val = 30 * 10
+hi = (val >> 8) & 0xFF
+lo = val & 0xFF
+r = sr(pkt(0xA6, hi, lo), wait=0.5)
+log(f"  A6=30: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+
+log("")
+log("[10] B0 prime")
+r = sr(pkt(0xB0, 0x01), wait=2.0)
+log(f"  B0: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+
+log("")
+log("[11] B3 aspirate — tip in water, HANDS OFF")
+log_input("  Press ENTER: ")
+r = sr(pkt(0xB3, 0x01), wait=3.0)
+ok = len(r) >= 12
+log(f"  B3: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+log(f"  Motor {'OK' if ok else 'REJECTED'}")
+if ok:
+    note = log_input("  How much water? (expecting ~30): ")
+    log(f"  >> {note}")
     log_input("  Dispense. Press ENTER: ")
     sr(pkt(0xB0, 0x01), wait=2.0)
     log("  Dispensed")
+
 log("")
-
-# MODIFY K: halve the k value
-# k is stored as 4 bytes at 0x90-0x93 (little-endian)
-# Current: 0x00, 0x00, 0x2F, 0xC7
-# As u32 LE: 0xC72F0000 = 3341107200
-# Half: 0x63970000 → bytes: 0x00, 0x00, 0x97, 0x63
-# Actually simpler: just halve byte[3] (0xC7 → 0x63)
-log("Modifying k: halving byte[3] (0xC7 → 0x63)")
-log("Writing to BOTH seg1 (0x93) and seg2 (0x9B)")
-write_ee(0x93, 0x63)
-write_ee(0x9B, 0x63)
-
-# Verify
-v1 = read_ee(0x93)
-v2 = read_ee(0x9B)
-log(f"  0x93 now: 0x{v1:02X} (was 0xC7)")
-log(f"  0x9B now: 0x{v2:02X} (was 0xC7)")
-log("")
-
-# TEST 2: Aspirate with halved k
-log_input("TEST 2: Aspirate with HALVED k. Tip in water, ENTER: ")
-r = sr(pkt(0xB3, 0x01), wait=3.0)
-ok = len(r) >= 12
-log(f"  B3: ({len(r)}b) Motor {'OK' if ok else 'REJECTED'}")
-if ok:
-    amount = log_input(f"  How much water? (should be ~half of {dial}): ")
-    log(f"  >> {amount}")
-    log_input("  Dispense. Press ENTER: ")
-    sr(pkt(0xB0, 0x01), wait=2.0)
-    log("  Dispensed")
-log("")
-
-# RESTORE original k
-log("Restoring original k values...")
-for addr in range(0x90, 0xA0):
-    write_ee(addr, orig[addr])
-
-# Verify restore
-log("Verifying restore:")
-for addr in range(0x90, 0xA0):
-    val = read_ee(addr)
-    match = "OK" if val == orig[addr] else f"MISMATCH (got 0x{val:02X})"
-    log(f"  0x{addr:02X}: 0x{val:02X} {match}")
-log("")
-
-# TEST 3: Aspirate with restored k (should be back to normal)
-log_input("TEST 3: Aspirate with RESTORED k. Tip in water, ENTER: ")
-r = sr(pkt(0xB3, 0x01), wait=3.0)
-ok = len(r) >= 12
-log(f"  B3: ({len(r)}b) Motor {'OK' if ok else 'REJECTED'}")
-if ok:
-    amount = log_input(f"  How much water? (should be back to ~{dial}): ")
-    log(f"  >> {amount}")
-    log_input("  Dispense. Press ENTER: ")
-    sr(pkt(0xB0, 0x01), wait=2.0)
-    log("  Dispensed")
+log("Was there a clear difference between 30 and 300?")
+answer = log_input("Answer: ")
+log(f">> {answer}")
 
 ser.close()
 log("\nDone.")
