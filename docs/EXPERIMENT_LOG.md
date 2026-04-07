@@ -477,6 +477,36 @@ A8 may require specific device state (pre-handshake?) to work.
 
 ---
 
+### EXP-034: DTR/RTS line manipulation
+
+**Device:** 30-300 µL dPette
+**Hypothesis:** CP2102 DTR/RTS lines may be wired to MCU reset/boot pins
+**Tested:**
+- DTR toggle (reset) — no display change
+- RTS toggle — no change
+- DTR+RTS together (boot mode) — no change, no bootloader response
+- DTR low + RTS high (BOOT0 entry) — no bootloader response
+- Rapid DTR pulses — no change
+- UART break condition — no change
+- STC sync byte (0x7F) at 9600/115200/19200/4800/1200 — no response
+- STM32 sync byte — no response
+**Conclusion:** DTR/RTS are NOT wired to MCU reset/boot pins.
+No bootloader detected on any baud rate.
+
+---
+
+### EXP-035: stcgal STC bootloader detection
+
+**Tool:** stcgal v1.10 (Python)
+**Method:** stcgal listens on serial port while pipette is power-cycled
+(powered off and on while USB stays connected)
+**Tested at:** 9600, 115200, 2400 baud
+**Result:** No STC bootloader detected at any baud rate.
+**Conclusion:** MCU is likely NOT an STC family chip.
+Identifying the MCU requires opening the device and reading chip markings.
+
+---
+
 ## Known side effects from experiments
 
 1. **Persistent Err4 on 30-300 device** — from EXP-018 cal mode entry.
