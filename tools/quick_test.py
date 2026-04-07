@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""A6 persistence test — skip B0 prime to avoid priming artifact.
+"""Full CMD scan in cal mode with b2=0x00 (expert Q3).
 
-Enter cal → A6 → exit cal → B3 directly (no B0).
-If B3 works after cal exit, compare volumes.
-Dial should be at 150.
+Previous scan used b2=0x01. Some commands behave differently at b2=0x00.
+Also tests b2=0x02, 0x03, 0xFF for responding commands.
 
+Must dismiss Err4 first. WATCH FOR MOTOR.
 Logs to captures/live_log.txt
 """
 
@@ -38,7 +38,7 @@ ser = serial.Serial(
     bytesize=8,
     parity="N",
     stopbits=1,
-    timeout=3.0,
+    timeout=0.5,
 )
 
 
@@ -47,7 +47,7 @@ def pkt(cmd: int, b2: int = 0, b3: int = 0, b4: int = 0) -> bytes:
     return bytes([0xFE, cmd, b2, b3, b4, ck])
 
 
-def sr(p: bytes, wait: float = 0.5) -> bytes:
+def sr(p: bytes, wait: float = 0.3) -> bytes:
     ser.reset_input_buffer()
     ser.write(p)
     ser.flush()
@@ -55,68 +55,71 @@ def sr(p: bytes, wait: float = 0.5) -> bytes:
     return ser.read(64)
 
 
-log("=== A6 PERSISTENCE — NO B0 PRIME ===")
-log("Dial at 150. Enter cal → A6 → exit → B3 directly.")
-log("No B0 priming to confuse observation.")
+log("=== CMD SCAN b2=0x00 IN CAL MODE ===")
+log("WATCH FOR MOTOR MOVEMENT!")
 log("")
 
-for vol in [300, 30, 300]:
-    log(f"{'=' * 50}")
-    log(f"Cal mode A6={vol} → exit → B3 (no B0)")
-    log(f"{'=' * 50}")
-    log_input("Dismiss Err4 if showing. Press ENTER: ")
+# Setup
+log_input("[Setup] Dismiss Err4, press ENTER: ")
+ser.timeout = 3.0
+r = sr(pkt(0xA5), wait=1.0)
+log(f"  Handshake: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+r = sr(pkt(0xA5, 0x01), wait=3.0)
+log(f"  Enter cal: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+log_input("  Dismiss Err4, wait for homing. Press ENTER: ")
+time.sleep(5.0)
+val = 300 * 10
+r = sr(pkt(0xA6, (val >> 8) & 0xFF, val & 0xFF), wait=0.5)
+log(f"  A6=300: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+log("")
 
-    # Handshake
-    r = sr(pkt(0xA5), wait=1.0)
-    log(f"  Handshake: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+ser.timeout = 0.5
 
-    # Enter cal
-    r = sr(pkt(0xA5, 0x01), wait=3.0)
-    log(f"  Enter cal: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-    log_input("  Dismiss Err4, wait for homing. Press ENTER: ")
-    time.sleep(5.0)
+# Scan 1: all 256 CMDs with b2=0x00
+log("SCAN 1: 0x00-0xFF with b2=0x00 (skipping A5)")
+log("Responding commands:")
+known_b1 = {}  # store b2=0x01 responses for comparison
+for cmd in range(256):
+    if cmd == 0xA5:
+        continue
+    r = sr(pkt(cmd, 0x00), wait=0.1)
+    if r:
+        log(f"  0x{cmd:02X} b2=00: ({len(r)}b) {r.hex(' ')}")
 
-    # A6 set volume
-    val = vol * 10
-    r = sr(pkt(0xA6, (val >> 8) & 0xFF, val & 0xFF), wait=0.5)
-    log(f"  A6={vol}: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+log("")
+log_input("Did ANY motor movement happen during scan 1? ")
+log("")
 
-    # Exit cal
-    r = sr(pkt(0xA5, 0x00), wait=1.0)
-    log(f"  Exit cal: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-    log_input("  Dismiss Err4. Press ENTER: ")
+# Scan 2: responding commands with b2=0x02, 0x03, 0xFF
+log("SCAN 2: Known responding CMDs with b2=0x02, 0x03, 0xFF")
+responding = [
+    0xA0,
+    0xA1,
+    0xA2,
+    0xA3,
+    0xA4,
+    0xA6,
+    0xA7,
+    0xA8,
+    0xB0,
+    0xB1,
+    0xB2,
+    0xB3,
+    0xB4,
+    0xB5,
+    0xB6,
+    0xB7,
+]
 
-    # B3 directly — NO B0 prime
-    log("  B3 aspirate (NO B0 prime) — tip in water, HANDS OFF")
-    log_input("  Press ENTER: ")
-    r = sr(pkt(0xB3, 0x01), wait=3.0)
-    ok = len(r) >= 12
-    log(
-        f"  B3: ({len(r)}b) {r.hex(' ') if r else '(none)'}  Motor {'OK' if ok else 'REJECTED'}"
-    )
+for b2 in [0x02, 0x03, 0xFF]:
+    log(f"  --- b2=0x{b2:02X} ---")
+    for cmd in responding:
+        r = sr(pkt(cmd, b2), wait=0.15)
+        if r:
+            log(f"    0x{cmd:02X}: ({len(r)}b) {r.hex(' ')}")
 
-    if ok:
-        note = log_input(f"  How much water? (A6={vol}, dial=150): ")
-        log(f"  >> {note}")
-        log_input("  Dispense (press button or B0). Press ENTER: ")
-        sr(pkt(0xB0, 0x01), wait=2.0)
-    else:
-        log("  B3 rejected — trying with B0 prime...")
-        r = sr(pkt(0xB0, 0x01), wait=2.0)
-        log_input("  Tip in water. Press ENTER for B3: ")
-        r = sr(pkt(0xB3, 0x01), wait=3.0)
-        ok = len(r) >= 12
-        log(f"  B3 retry: ({len(r)}b)  Motor {'OK' if ok else 'REJECTED'}")
-        if ok:
-            note = log_input(f"  How much water? (A6={vol}, dial=150): ")
-            log(f"  >> {note}")
-            log_input("  Dispense. Press ENTER: ")
-            sr(pkt(0xB0, 0x01), wait=2.0)
-    log("")
-
-log("Did amounts match A6 values (300/30/300) or dial (150)?")
-answer = log_input("Answer: ")
-log(f">> {answer}")
+log("")
+log_input("Did ANY motor movement happen during scan 2? ")
 
 ser.close()
 log("\nDone.")

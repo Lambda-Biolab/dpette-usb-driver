@@ -569,6 +569,39 @@ matching A6) was coincidence or measurement error.
 
 ---
 
+### EXP-046: Expert follow-up — DTR/RTS, UART break, fast timing
+
+**Q1 DTR/RTS in cal mode:** DTR pulse, RTS pulse, DTR+RTS together —
+no motor movement. Not wired to button GPIO.
+
+**Q2 UART break/special bytes in cal mode:** Break condition, null flood
+(50 bytes), raw 0xB3 without header, rapid A5 b2=1 ×10 — no motor.
+
+**Q4 Fast timing:** A6→B0 within 20ms, A6→B3 within 20ms,
+A5→A6→B0 all within 20ms — B0 moved motor (same fixed priming as
+always), B3 still rejected. Timing does NOT change behavior.
+
+**A6→B0 timing comparison:** Slow (2s gap) vs fast (20ms gap) at
+A6=300 and A6=30 — all drew same ~40-50 µL. Timing irrelevant.
+
+---
+
+### EXP-047: CMD scan b2=0x00 and b2=0x02/03/FF in cal mode
+
+**Scan 1:** All 256 CMDs with b2=0x00 in cal mode. Same 16 commands
+respond as with b2=0x01. No motor movement. No new commands.
+
+**Scan 2:** Responding CMDs with b2=0x02, 0x03, 0xFF. Motor moved
+during scan (likely B0 b2=0x02 or b2=0x03 — same fixed priming
+confirmed in EXP-043). Notable: B5 b2=0x03 returned byte[2]=0x00
+(different from usual 0x01), A6 b2=0xFF returned byte[2]=0x01.
+
+**Conclusion:** No new commands or behaviors found. The entire b2
+parameter space (0x00, 0x01, 0x02, 0x03, 0xFF) has been tested
+for all responding commands in cal mode.
+
+---
+
 ### FINAL CONCLUSION: Serial-only volume control is NOT possible
 
 After 44 experiments, every serial approach has been exhausted:
