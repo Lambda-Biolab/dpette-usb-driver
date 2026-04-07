@@ -185,7 +185,7 @@ link.open()
 link.write(encode_packet(Command.HANDSHAKE))
 link.read(6)
 
-# Enter cal mode (via MOSFET button press — NOT serial A5 b2=1)
+# Enter cal mode (via MOSFET button press — NOT serial A5 b2=1 — causes Err4)
 trigger_button()  # your MOSFET GPIO function
 
 # Set volume and aspirate
@@ -256,6 +256,7 @@ docs/
   PROTOCOL_NOTES.md  — full protocol specification
   EXPERIMENT_LOG.md  — 48 experiments with results and dead ends
   HARDWARE.md        — CP2102 details, device identification
+  HARDWARE_MOD.md    — BSS138 button mod: BOM, wiring, step-by-step instructions
   SAFETY_MODEL.md    — mechanical risks and software guardrails
 ```
 
@@ -264,6 +265,7 @@ docs/
 - [Protocol Notes](docs/PROTOCOL_NOTES.md) — complete packet format, command reference
 - [Experiment Log](docs/EXPERIMENT_LOG.md) — 48 experiments, chronological
 - [Hardware Notes](docs/HARDWARE.md) — CP2102, MCU, device connection
+- [Hardware Mod Guide](docs/HARDWARE_MOD.md) — BSS138 MOSFET mod: shopping list, wiring, step-by-step
 - [Safety Model](docs/SAFETY_MODEL.md) — risks, limits, dangerous commands
 
 ## License
