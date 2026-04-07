@@ -547,6 +547,28 @@ a fixed priming cycle regardless of A6 volume or b2 value.
 
 ---
 
+### EXP-045: A6 persistence after cal mode exit
+
+**Hypothesis:** A6-set volume might persist in MCU RAM after exiting
+cal mode. B3 in normal mode might use the A6 value instead of dial.
+**Setup:** Dial at 150 µL. Enter cal → A6 → exit cal → B3 (no B0).
+**Result:**
+
+| A6 value | B3 drew | Matches |
+|----------|---------|---------|
+| 300 µL   | 150 µL  | Dial ✗  |
+| 30 µL    | 150 µL  | Dial ✗  |
+| 300 µL   | 150 µL  | Dial ✗  |
+
+❌ A6 does NOT persist. MCU reverts to dial volume on cal exit.
+B3 always uses dial volume in normal mode. The EXP-019 result (50 µL
+matching A6) was coincidence or measurement error.
+
+**Also confirmed:** B3 works without B0 prime after cal mode exit
+(12-byte response, motor OK). The cal exit itself acts as a prime.
+
+---
+
 ### FINAL CONCLUSION: Serial-only volume control is NOT possible
 
 After 44 experiments, every serial approach has been exhausted:
