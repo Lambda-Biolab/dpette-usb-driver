@@ -477,6 +477,43 @@ A8 may require specific device state (pre-handshake?) to work.
 
 ---
 
+### EXP-039: Physical button aspirate at A6-set volume in cal mode
+
+**Device:** 30-300 µL dPette
+**Flow:** Enter cal mode → A6 sets display volume → user presses physical
+button → observe aspirated amount
+**Results:**
+
+| Round | A6 volume | Physical button | Water drawn |
+|-------|-----------|----------------|-------------|
+| 1     | 30 µL     | pressed        | **~30 µL**  |
+| 2     | 300 µL    | pressed        | **~300 µL** |
+| 3     | 30 µL     | pressed        | **~30 µL**  |
+
+✅ **VOLUME CONTROL CONFIRMED!**
+
+A6 sets the target volume. The physical button triggers aspiration at
+that volume. Volume can be changed between aspirations by sending A6
+again — no need to exit/re-enter cal mode.
+
+This is exactly how PetteCali's calibration works: software sets the
+volume, user presses the button to aspirate at each measurement point.
+
+**Complete remote volume control flow (requires physical button actuation):**
+1. Enter cal mode: `FE A5 01 00 00 A6` (dismiss Err4)
+2. Set volume: `FE A6 [vol_hi] [vol_lo] 00 [cksum]` (vol = µL × 10)
+3. Physical button press → aspirates at A6 volume
+4. Change volume: send new A6 → button press → aspirates at new volume
+5. Repeat 2-4 for each volume
+
+**Remaining blocker:** The physical button press cannot be triggered via
+serial. For full automation, need either:
+- Physical actuator (servo/solenoid) on the button
+- RP2040 MitM intercepting the button GPIO line
+- Firmware patch to add a serial button-press command
+
+---
+
 ### EXP-036: Complement pair write to 0x42/0x43
 
 **Hypothesis:** Err4 flag is a byte+complement pair at 0x42 (0x00) / 0x43 (0xFF).
