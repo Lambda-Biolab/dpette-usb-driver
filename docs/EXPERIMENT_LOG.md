@@ -477,6 +477,40 @@ A8 may require specific device state (pre-handshake?) to work.
 
 ---
 
+### EXP-036: Complement pair write to 0x42/0x43
+
+**Hypothesis:** Err4 flag is a byte+complement pair at 0x42 (0x00) / 0x43 (0xFF).
+Writing 0xFF/0x00 as a valid complement would signal "calibration complete."
+**Result:** ❌ Wrote 0x42=0xFF, 0x43=0x00 (valid XOR complement). Values
+persisted after reboot — MCU did not overwrite. Err4 still appeared.
+**Conclusion:** 0x42/0x43 are NOT the Err4 flag. The flag is not in EEPROM.
+
+---
+
+### EXP-037: Extended A3 address reads (beyond 0xFF)
+
+**Hypothesis:** If MCU is STM8-like, byte[2] in A3 command might be addr_hi,
+allowing reads of program flash (0x8000+) or option bytes (0x4800+).
+**Result:** ❌ Byte[2] is ignored. 0x4042 returns same as 0x42, 0x8001
+returns same as 0x01. Cannot access memory beyond 0x00-0xFF.
+**Conclusion:** A3 reads are limited to 256-byte EEPROM. No flash access.
+
+---
+
+### EXP-038: B0→B3 aspirate inside calibration mode
+
+**Hypothesis:** B0 primes B3 in normal mode. Does B0→B3 also work in cal mode
+where A6 controls the display volume?
+**Tested:** Enter cal → A6=30 → B0 → B3 → A6=300 → B0 → B3 → A6=30 → B0 → B3
+**Result:** ❌ B3 rejected in all three attempts (6-byte response, no motor).
+B0 moved the motor but only as a small fixed priming cycle — not volume-controlled.
+A6 changed the display to 30 and 300 correctly.
+**Conclusion:** B3 does not work in cal mode, even with B0 prime. B0's movement
+in cal mode is a fixed prime, not an aspirate at A6 volume. Cal mode does not
+provide volume-controlled aspiration via serial.
+
+---
+
 ### EXP-034: DTR/RTS line manipulation
 
 **Device:** 30-300 µL dPette
