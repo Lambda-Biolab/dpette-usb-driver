@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Explore B0 b2=1,2,3 in cal mode at different A6 volumes.
+"""A6 persistence test — skip B0 prime to avoid priming artifact.
 
-Does B0 b2=2 or b2=3 aspirate at A6 volume?
-Test each at A6=30 and A6=300.
+Enter cal → A6 → exit cal → B3 directly (no B0).
+If B3 works after cal exit, compare volumes.
+Dial should be at 150.
 
-Must dismiss Err4 first.
 Logs to captures/live_log.txt
 """
 
@@ -55,42 +55,66 @@ def sr(p: bytes, wait: float = 0.5) -> bytes:
     return ser.read(64)
 
 
-log("=== B0 b2=1/2/3 AT DIFFERENT A6 VOLUMES ===")
-log("If amount changes with A6, we have serial volume control!")
+log("=== A6 PERSISTENCE — NO B0 PRIME ===")
+log("Dial at 150. Enter cal → A6 → exit → B3 directly.")
+log("No B0 priming to confuse observation.")
 log("")
 
-log_input("[1] Dismiss Err4, press ENTER: ")
-r = sr(pkt(0xA5), wait=1.0)
-log(f"  Handshake: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+for vol in [300, 30, 300]:
+    log(f"{'=' * 50}")
+    log(f"Cal mode A6={vol} → exit → B3 (no B0)")
+    log(f"{'=' * 50}")
+    log_input("Dismiss Err4 if showing. Press ENTER: ")
 
-log("[2] Entering cal mode...")
-r = sr(pkt(0xA5, 0x01), wait=3.0)
-log(f"  A5 b2=1: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-log_input("  Dismiss Err4, wait for homing to FULLY finish. Press ENTER: ")
-time.sleep(10.0)
-log("  Settled.")
-log("")
+    # Handshake
+    r = sr(pkt(0xA5), wait=1.0)
+    log(f"  Handshake: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
 
-for b2_val in [1, 2, 3]:
-    for vol in [30, 300]:
-        log(f"{'=' * 50}")
-        log(f"B0 b2={b2_val} at A6={vol} µL")
-        log(f"{'=' * 50}")
+    # Enter cal
+    r = sr(pkt(0xA5, 0x01), wait=3.0)
+    log(f"  Enter cal: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+    log_input("  Dismiss Err4, wait for homing. Press ENTER: ")
+    time.sleep(5.0)
 
-        val = vol * 10
-        r = sr(pkt(0xA6, (val >> 8) & 0xFF, val & 0xFF), wait=0.5)
-        log(f"  A6={vol}: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+    # A6 set volume
+    val = vol * 10
+    r = sr(pkt(0xA6, (val >> 8) & 0xFF, val & 0xFF), wait=0.5)
+    log(f"  A6={vol}: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
 
-        log_input("  Tip in water, HANDS OFF. Press ENTER: ")
-        p = pkt(0xB0, b2_val)
-        r = sr(p, wait=3.0)
-        log(f"  TX: {p.hex(' ')}")
-        log(f"  RX: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-        note = log_input(f"  How much water? (A6={vol}, b2={b2_val}): ")
+    # Exit cal
+    r = sr(pkt(0xA5, 0x00), wait=1.0)
+    log(f"  Exit cal: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+    log_input("  Dismiss Err4. Press ENTER: ")
+
+    # B3 directly — NO B0 prime
+    log("  B3 aspirate (NO B0 prime) — tip in water, HANDS OFF")
+    log_input("  Press ENTER: ")
+    r = sr(pkt(0xB3, 0x01), wait=3.0)
+    ok = len(r) >= 12
+    log(
+        f"  B3: ({len(r)}b) {r.hex(' ') if r else '(none)'}  Motor {'OK' if ok else 'REJECTED'}"
+    )
+
+    if ok:
+        note = log_input(f"  How much water? (A6={vol}, dial=150): ")
         log(f"  >> {note}")
-        log("")
+        log_input("  Dispense (press button or B0). Press ENTER: ")
+        sr(pkt(0xB0, 0x01), wait=2.0)
+    else:
+        log("  B3 rejected — trying with B0 prime...")
+        r = sr(pkt(0xB0, 0x01), wait=2.0)
+        log_input("  Tip in water. Press ENTER for B3: ")
+        r = sr(pkt(0xB3, 0x01), wait=3.0)
+        ok = len(r) >= 12
+        log(f"  B3 retry: ({len(r)}b)  Motor {'OK' if ok else 'REJECTED'}")
+        if ok:
+            note = log_input(f"  How much water? (A6={vol}, dial=150): ")
+            log(f"  >> {note}")
+            log_input("  Dispense. Press ENTER: ")
+            sr(pkt(0xB0, 0x01), wait=2.0)
+    log("")
 
-log("Summary: did ANY b2 value show different amounts at 30 vs 300?")
+log("Did amounts match A6 values (300/30/300) or dial (150)?")
 answer = log_input("Answer: ")
 log(f">> {answer}")
 
