@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-"""Interactive: isolate which prime+B3 moves motor in cal mode.
+"""Explore B0 b2=1,2,3 in cal mode at different A6 volumes.
 
-Each command waits for your observation before continuing.
-Must already be in cal mode with A6 volume set.
+Does B0 b2=2 or b2=3 aspirate at A6 volume?
+Test each at A6=30 and A6=300.
 
+Must dismiss Err4 first.
 Logs to captures/live_log.txt
-
-Run directly:
-    python tools/quick_test.py
 """
 
 import time
@@ -57,13 +55,10 @@ def sr(p: bytes, wait: float = 0.5) -> bytes:
     return ser.read(64)
 
 
-log("=== ISOLATE MOTOR MOVEMENT: ONE AT A TIME ===")
-log("Must be in cal mode with A6 volume set.")
-log("Each step: sends PRIME, waits, then sends B3.")
-log("You observe motor between each command.")
+log("=== B0 b2=1/2/3 AT DIFFERENT A6 VOLUMES ===")
+log("If amount changes with A6, we have serial volume control!")
 log("")
 
-# Setup
 log_input("[1] Dismiss Err4, press ENTER: ")
 r = sr(pkt(0xA5), wait=1.0)
 log(f"  Handshake: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
@@ -71,63 +66,34 @@ log(f"  Handshake: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
 log("[2] Entering cal mode...")
 r = sr(pkt(0xA5, 0x01), wait=3.0)
 log(f"  A5 b2=1: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-log_input("  Dismiss Err4, wait for homing. Press ENTER: ")
-time.sleep(3.0)
-
-log("[3] A6=100 µL")
-val = 100 * 10
-r = sr(pkt(0xA6, (val >> 8) & 0xFF, val & 0xFF), wait=0.5)
-log(f"  A6: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+log_input("  Dismiss Err4, wait for homing to FULLY finish. Press ENTER: ")
+time.sleep(10.0)
+log("  Settled.")
 log("")
 
-primes = [
-    ("B0 b2=1", 0xB0, 0x01),
-    ("B1 b2=1", 0xB1, 0x01),
-    ("B2 b2=1", 0xB2, 0x01),
-    ("B3 b2=1", 0xB3, 0x01),
-    ("B4 b2=1", 0xB4, 0x01),
-    ("B5 b2=1", 0xB5, 0x01),
-    ("B6 b2=1", 0xB6, 0x01),
-    ("B7 b2=1", 0xB7, 0x01),
-    ("B0 b2=0", 0xB0, 0x00),
-    ("B1 b2=0", 0xB1, 0x00),
-    ("B2 b2=0", 0xB2, 0x00),
-    ("B3 b2=0", 0xB3, 0x00),
-    ("B4 b2=0", 0xB4, 0x00),
-    ("B5 b2=0", 0xB5, 0x00),
-    ("B6 b2=0", 0xB6, 0x00),
-    ("B7 b2=0", 0xB7, 0x00),
-    ("A0 b2=0", 0xA0, 0x00),
-    ("A0 b2=1", 0xA0, 0x01),
-    ("A3 b2=0", 0xA3, 0x00),
-    ("A3 b2=1", 0xA3, 0x01),
-    ("A4 b2=0", 0xA4, 0x00),
-    ("A4 b2=1", 0xA4, 0x01),
-    ("A6 b2=0", 0xA6, 0x00),
-    ("A6 b2=1", 0xA6, 0x01),
-    ("A7 b2=0", 0xA7, 0x00),
-    ("A7 b2=1", 0xA7, 0x01),
-]
+for b2_val in [1, 2, 3]:
+    for vol in [30, 300]:
+        log(f"{'=' * 50}")
+        log(f"B0 b2={b2_val} at A6={vol} µL")
+        log(f"{'=' * 50}")
 
-for i, (label, cmd, b2) in enumerate(primes):
-    log(f"--- [{i+1}/{len(primes)}] PRIME: {label} ---")
-    log_input("  Press ENTER to send prime: ")
-    p = pkt(cmd, b2)
-    r = sr(p, wait=1.0)
-    log(f"  Prime TX: {p.hex(' ')}")
-    log(f"  Prime RX: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-    prime_note = log_input("  Motor moved on PRIME? (yes/no): ")
-    log(f"  >> prime: {prime_note}")
+        val = vol * 10
+        r = sr(pkt(0xA6, (val >> 8) & 0xFF, val & 0xFF), wait=0.5)
+        log(f"  A6={vol}: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
 
-    log_input("  Press ENTER to send B3: ")
-    r = sr(pkt(0xB3, 0x01), wait=2.0)
-    ok = len(r) >= 12
-    log(f"  B3 RX: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-    log(f"  B3 Motor {'OK <<<' if ok else 'rejected'}")
-    b3_note = log_input("  Motor moved on B3? (yes/no): ")
-    log(f"  >> B3: {b3_note}")
-    log("")
+        log_input("  Tip in water, HANDS OFF. Press ENTER: ")
+        p = pkt(0xB0, b2_val)
+        r = sr(p, wait=3.0)
+        log(f"  TX: {p.hex(' ')}")
+        log(f"  RX: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+        note = log_input(f"  How much water? (A6={vol}, b2={b2_val}): ")
+        log(f"  >> {note}")
+        log("")
+
+log("Summary: did ANY b2 value show different amounts at 30 vs 300?")
+answer = log_input("Answer: ")
+log(f">> {answer}")
 
 ser.close()
-log("Done.")
+log("\nDone.")
 _log.close()
