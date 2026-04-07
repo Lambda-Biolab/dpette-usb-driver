@@ -18,6 +18,7 @@ from dpette.protocol import (
     dispense_packet,
     encode_packet,
     handshake_packet,
+    read_ee_packet,
     send_cali_volume_packet,
     write_ee_packet,
 )
@@ -118,13 +119,33 @@ class TestSendCaliVolumePacket:
         assert pkt == bytes.fromhex("fe a6 13 88 00 41")
 
 
+class TestReadEePacket:
+    def test_addr_in_b3(self) -> None:
+        """Address goes in byte[3] — confirmed from PetteCali capture."""
+        pkt = read_ee_packet(0x90)
+        assert pkt == bytes.fromhex("fe a3 00 90 00 33")
+
+    def test_cmd_is_a3(self) -> None:
+        assert read_ee_packet(0x80)[1] == Command.DATA
+
+    def test_b2_is_zero(self) -> None:
+        assert read_ee_packet(0x82)[2] == 0x00
+
+
 class TestWriteEePacket:
-    def test_addr_in_b2(self) -> None:
-        pkt = write_ee_packet(0x82, value=0x42)
-        assert pkt[0] == HEADER_TX
-        assert pkt[1] == Command.WRITE_EE
-        assert pkt[2] == 0x82
-        assert pkt[4] == 0x42
+    def test_addr_in_b3_value_in_b4(self) -> None:
+        """Address in byte[3], value in byte[4] — from PetteCali capture."""
+        pkt = write_ee_packet(0x92, value=0x2F)
+        assert pkt == bytes.fromhex("fe a4 00 92 2f 65")
+
+    def test_b2_is_zero(self) -> None:
+        assert write_ee_packet(0x82, 0x42)[2] == 0x00
+
+    def test_addr_position(self) -> None:
+        assert write_ee_packet(0x90, 0x00)[3] == 0x90
+
+    def test_value_position(self) -> None:
+        assert write_ee_packet(0x90, 0xAB)[4] == 0xAB
 
 
 class TestAspiratePacket:
