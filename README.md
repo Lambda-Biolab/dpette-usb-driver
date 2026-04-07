@@ -13,6 +13,35 @@ These pipettes use a Silicon Labs **CP2102** USB-UART bridge (VID `0x10C4`,
 PID `0xEA60`) to communicate at 9600 baud 8N1.  This project provides an
 open-source Python driver for programmatic pipette control on Linux and macOS.
 
+## Why this matters
+
+There is **no open-source, disposable-tip, API-controlled pipette** at
+this price point.  Every cheap open-source liquid handler ($100–300) uses
+syringe pumps — fine for non-contaminating reagents, but unusable for
+biological work due to carryover between samples.  The dPette uses
+standard disposable tips, putting it in a different class for actual lab
+use.
+
+| Solution | Cost | Tips | API control |
+|----------|------|------|-------------|
+| **dPette + MOSFET (this project)** | **~$140** | **Disposable** | **Full serial** |
+| ac-rad Digital Pipette v2 | ~$200 | Syringe (no tips) | Arduino |
+| Science Jubilee + OT-2 pipette | ~$900+ | Disposable | Python |
+| Opentrons OT-2 | ~$10,000+ | Disposable | Python |
+| Hamilton STAR | ~$100,000+ | Disposable | VENUS/Python |
+
+The [ac-rad Digital Pipette v2](https://github.com/ac-rad/digital-pipette-v2)
+paper explicitly identifies disposable-tip handling as an **unsolved open
+hardware problem** for self-driving labs.  This project solves it for $140.
+
+### Integration opportunity
+
+[PyLabRobot](https://github.com/PyLabRobot/pylabrobot) is a hardware-agnostic
+Python SDK for liquid handling (used by pharma and academic self-driving labs).
+The dpette driver (56 tests, full protocol) could be contributed as a new
+backend, making the $140 dPette a first-class citizen in an ecosystem
+alongside Hamilton and Opentrons robots.
+
 ## What works today (v0.1.0)
 
 - **Aspirate** at the physical dial volume (B0 prime → B3 aspirate)
