@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Test B0→B3 aspirate inside calibration mode with A6 volume.
+"""Test physical button aspirate at A6-set volume in cal mode.
 
-Enter cal mode, set volume with A6, B0 prime, B3 aspirate.
-Tests two different volumes to see if amount changes.
+Enter cal mode, set volume with A6, then YOU press the physical button.
+Compare water levels at 30 vs 300 µL.
 
-Dismiss Err4 before running. Tip on, water ready.
 Logs to captures/live_log.txt
 
 Run directly:
@@ -58,8 +57,10 @@ def sr(p: bytes, wait: float = 0.5) -> bytes:
     return ser.read(64)
 
 
-log("=== B0→B3 IN CALIBRATION MODE WITH A6 VOLUME ===")
-log("Dismiss Err4 first. Tip on, water ready.")
+log("=== PHYSICAL BUTTON ASPIRATE AT A6 VOLUME ===")
+log("In cal mode, A6 sets the display volume.")
+log("YOU press the pipette button to aspirate.")
+log("This is exactly what PetteCali expects the user to do.")
 log("")
 
 # Step 1: Handshake
@@ -72,105 +73,64 @@ log("")
 log("[2] Entering cal mode...")
 r = sr(pkt(0xA5, 0x01), wait=3.0)
 log(f"  A5 b2=1: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-log_input("  Dismiss Err4 if showing. Press ENTER when cal menu shows: ")
+log_input("  Dismiss Err4, wait for homing to finish. Press ENTER: ")
+time.sleep(3.0)
 
-# Wait for any homing cycle to finish
-log("  Waiting 5s for homing cycle...")
-time.sleep(5.0)
-
-# Step 3: Set volume to 30 µL with A6
+# Round 1: A6=30
 log("")
-log("[3] Setting A6=30 µL")
+log("=" * 50)
+log("ROUND 1: A6 = 30 µL")
+log("=" * 50)
 val = 30 * 10
 hi = (val >> 8) & 0xFF
 lo = val & 0xFF
 r = sr(pkt(0xA6, hi, lo), wait=0.5)
 log(f"  A6=30: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-note = log_input("  Does display show 30? ")
+note = log_input("  Display shows 30? ")
 log(f"  >> {note}")
-
-# Step 4: B0 prime in cal mode
 log("")
-log("[4] B0 prime in cal mode")
-r = sr(pkt(0xB0, 0x01), wait=2.0)
-log(f"  B0: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-note = log_input("  Motor moved? ")
+log("  Dip tip in water.")
+log("  NOW PRESS THE PHYSICAL ASPIRATE BUTTON on the pipette.")
+note = log_input("  How much water did it draw? ")
 log(f"  >> {note}")
+log_input("  Dispense manually (press button again). Press ENTER when done: ")
 
-# Step 5: B3 aspirate in cal mode
+# Round 2: A6=300
 log("")
-log("[5] B3 aspirate in cal mode — tip in water, HANDS OFF")
-log_input("  Press ENTER: ")
-r = sr(pkt(0xB3, 0x01), wait=3.0)
-ok = len(r) >= 12
-log(f"  B3: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-log(f"  Motor {'OK' if ok else 'REJECTED'}")
-if ok:
-    note = log_input("  How much water? (expecting ~30): ")
-    log(f"  >> {note}")
-    log_input("  Dispense over cup. Press ENTER: ")
-    sr(pkt(0xB0, 0x01), wait=2.0)
-    log("  Dispensed")
-
-# Step 6: Now change to 300 µL
-log("")
-log("[6] Setting A6=300 µL (still in cal mode)")
+log("=" * 50)
+log("ROUND 2: A6 = 300 µL")
+log("=" * 50)
 val = 300 * 10
 hi = (val >> 8) & 0xFF
 lo = val & 0xFF
 r = sr(pkt(0xA6, hi, lo), wait=0.5)
 log(f"  A6=300: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-note = log_input("  Does display show 300? ")
+note = log_input("  Display shows 300? ")
 log(f"  >> {note}")
-
-# Step 7: B0 prime again
 log("")
-log("[7] B0 prime")
-r = sr(pkt(0xB0, 0x01), wait=2.0)
-log(f"  B0: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
+log("  Dip tip in water.")
+log("  NOW PRESS THE PHYSICAL ASPIRATE BUTTON on the pipette.")
+note = log_input("  How much water did it draw? ")
+log(f"  >> {note}")
+log_input("  Dispense manually. Press ENTER when done: ")
 
-# Step 8: B3 aspirate at 300
+# Round 3: A6=30 again to confirm
 log("")
-log("[8] B3 aspirate — tip in water, HANDS OFF")
-log_input("  Press ENTER: ")
-r = sr(pkt(0xB3, 0x01), wait=3.0)
-ok = len(r) >= 12
-log(f"  B3: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-log(f"  Motor {'OK' if ok else 'REJECTED'}")
-if ok:
-    note = log_input("  How much water? (expecting ~300): ")
-    log(f"  >> {note}")
-    log_input("  Dispense over cup. Press ENTER: ")
-    sr(pkt(0xB0, 0x01), wait=2.0)
-    log("  Dispensed")
-
-# Step 9: Back to 30 to confirm
-log("")
-log("[9] Setting A6=30 µL again")
+log("=" * 50)
+log("ROUND 3: A6 = 30 µL (confirm)")
+log("=" * 50)
 val = 30 * 10
 hi = (val >> 8) & 0xFF
 lo = val & 0xFF
 r = sr(pkt(0xA6, hi, lo), wait=0.5)
 log(f"  A6=30: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-
+note = log_input("  Display shows 30? ")
+log(f"  >> {note}")
 log("")
-log("[10] B0 prime")
-r = sr(pkt(0xB0, 0x01), wait=2.0)
-log(f"  B0: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-
-log("")
-log("[11] B3 aspirate — tip in water, HANDS OFF")
-log_input("  Press ENTER: ")
-r = sr(pkt(0xB3, 0x01), wait=3.0)
-ok = len(r) >= 12
-log(f"  B3: ({len(r)}b) {r.hex(' ') if r else '(none)'}")
-log(f"  Motor {'OK' if ok else 'REJECTED'}")
-if ok:
-    note = log_input("  How much water? (expecting ~30): ")
-    log(f"  >> {note}")
-    log_input("  Dispense. Press ENTER: ")
-    sr(pkt(0xB0, 0x01), wait=2.0)
-    log("  Dispensed")
+log("  Dip tip in water.")
+log("  PRESS THE PHYSICAL BUTTON.")
+note = log_input("  How much water? ")
+log(f"  >> {note}")
 
 log("")
 log("Was there a clear difference between 30 and 300?")
