@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
-"""Basic pipette control — aspirate and dispense at the dial volume.
-
-This is the simplest working example. No calibration mode, no volume
-control — just aspirate and dispense at whatever volume the physical
-dial is set to.
-
-Prerequisites:
-    - dPette connected via USB
-    - Dismiss Err4 if showing (hold the pipette button)
-    - Tip attached
+"""Basic pipette control — aspirate and dispense at a set volume.
 
 Usage:
     python examples/basic_pipette.py
@@ -19,30 +10,22 @@ from dpette.driver import DPetteDriver
 
 
 def main() -> None:
-    # Auto-detect the serial port, or specify manually
-    port = guess_default_port()
-    if port is None:
-        port = "/dev/cu.usbserial-0001"  # macOS default
-        # port = "/dev/ttyUSB0"           # Linux default
+    port = guess_default_port() or "/dev/cu.usbserial-0001"
 
     print(f"Connecting to dPette on {port}...")
     cfg = SerialConfig(port=port)
     driver = DPetteDriver(cfg)
 
     driver.connect()
-    print("Connected! (handshake + prime complete)")
+    print("Connected!")
 
-    # Aspirate at dial volume
-    print("Aspirating...")
-    resp = driver.aspirate()
-    print(f"  Aspirate response: {resp.raw.hex(' ')}")
+    print("Aspirating 200 µL...")
+    driver.aspirate(200.0)
 
     input("Press Enter to dispense...")
 
-    # Dispense
     print("Dispensing...")
-    resp = driver.dispense()
-    print(f"  Dispense response: {resp.raw.hex(' ')}")
+    driver.dispense()
 
     driver.disconnect()
     print("Done.")

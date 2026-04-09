@@ -24,7 +24,7 @@ def main() -> None:
     link.open()
 
     # Handshake
-    link.write(encode_packet(Command.HANDSHAKE))
+    link.write(encode_packet(Command.HELLO))
     time.sleep(1.0)
     resp = link.read(6)
     print(f"Handshake: {resp.hex(' ')}")
@@ -51,14 +51,14 @@ def main() -> None:
     for seg, bk, bb in [(1, 0x90, 0x94), (2, 0x98, 0x9C)]:
         k = read_u32(bk)
         b = read_u32(bb)
-        print(f"  Segment {seg}: k={k/10000:.4f}  b={b/10000:.4f}")
+        print(f"  Segment {seg}: k={k / 10000:.4f}  b={b / 10000:.4f}")
 
     print()
     print("Factory defaults:")
     for seg, bk, bb in [(1, 0xA0, 0xA4), (2, 0xA8, 0xAC)]:
         k = read_u32(bk)
         b = read_u32(bb)
-        print(f"  Segment {seg}: k={k/10000:.4f}  b={b/10000:.4f}")
+        print(f"  Segment {seg}: k={k / 10000:.4f}  b={b / 10000:.4f}")
 
     # Volume range
     print()
