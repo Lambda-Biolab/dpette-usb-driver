@@ -85,6 +85,14 @@ class SerialLink:
             raise RuntimeError("Serial port is not open")
         return self._port
 
+    def flush_input(self) -> None:
+        """Discard any bytes waiting in the receive buffer."""
+        port = self._require_open()
+        stale = port.in_waiting
+        if stale:
+            discarded = port.read(stale)
+            log.debug("FLUSH %d stale bytes: %s", len(discarded), discarded.hex(" "))
+
     def write(self, data: bytes) -> None:
         """Write *data* to the serial port.
 

@@ -633,22 +633,16 @@ $130 dPette + BSS138 MOSFET ($0.10) + RP2040 ($4) + 2 solder joints.
 
 ---
 
-### FINAL CONCLUSION: Serial-only volume control is NOT possible
+### ~~FINAL CONCLUSION: Serial-only volume control is NOT possible~~
 
-After 44 experiments, every serial approach has been exhausted:
-- B3 aspirate: rejected in cal mode (every prime tried)
-- B0 in cal mode: fixed priming (b2=1/2/3 all same, payload ignored)
-- A6: changes display only, not motor travel
-- Full CMD scan: no undiscovered commands in cal mode
-- EEPROM k writes: require reboot (triggers Err4)
+**OVERTURNED by EXP-050 (2026-04-09).** Serial volume control IS possible
+using the remote control protocol (A0/B0/B2/B3) instead of the calibration
+interface (A5/A6). See EXP-049 and EXP-050 for details.
 
-**Volume-controlled aspiration requires the physical button press.**
-A6 (serial) sets the target volume, physical button triggers aspiration
-at that volume. This is a firmware design — the button GPIO ISR reads
-the A6 value, serial motor commands do not.
-
-**For automation:** servo/solenoid on button, RP2040 GPIO MitM,
-or firmware patch required.
+The original conclusion was correct within its scope — the calibration
+interface (A5/A6) does NOT provide volume control. But the remote control
+interface (B2 PI_VOLUM + B3 KEY) was never tested in the correct sequence
+because it was not discovered through PetteCali decompilation.
 
 ---
 
@@ -736,6 +730,61 @@ No bootloader detected on any baud rate.
 **Result:** No STC bootloader detected at any baud rate.
 **Conclusion:** MCU is likely NOT an STC family chip.
 Identifying the MCU requires opening the device and reading chip markings.
+
+---
+
+### EXP-049: Official DLAB remote control protocol test (2026-04-09)
+
+**Source:** Communication_Protocol_CN.doc from xg590/Learn_dPettePlus repo —
+the official DLAB serial protocol document shipped with the dPette+.
+
+**Key discovery:** The official protocol defines a completely different
+workflow from what we've been using (A5/A6 calibration interface from
+PetteCali). The remote control interface uses A0/B0/B1/B2/B3.
+
+**Device:** dPette on /dev/cu.usbserial-0001
+**Script:** `examples/test_remote_mode.py`
+**Results:**
+- A0 handshake: accepted (p1=0) — this is the REAL handshake, not A5
+- B0 param=1 (enter PI mode): accepted, motor homed
+- B1 speed control (suck=2, blow=2): both accepted
+- B2 PI_VOLUM = 200 uL (24-bit × 100 encoding): accepted (p1=0)
+- B3 param=1 (aspirate): 12-byte response, motor moved
+- B3 param=2 (dispense): 12-byte response, motor moved — FIRST TIME TESTED
+
+**Conclusion:** The entire official remote protocol works on the basic
+dPette. B3 b2=2 for dispense is confirmed working (never tested in 48
+prior experiments). B2 volume was accepted but needed volume verification.
+
+---
+
+### EXP-050: B2 volume control verification (2026-04-09)
+
+**Device:** dPette 30-300 uL, physical dial set to 300 uL
+**Script:** `examples/test_b2_volume.py`
+**Method:** Three trials — B2=50, B2=200, B2=50 — with dial fixed at 300.
+If motor travel matches B2 (not dial), volume control is confirmed.
+
+**Results:**
+- Trial 1 (B2=50 uL): motor moved, display changed to 50, SMALL aspirate
+- Trial 2 (B2=200 uL): motor moved, display changed to 200, MEDIUM aspirate
+- Trial 3 (B2=50 uL): motor moved, display changed to 50, SMALL aspirate
+
+**All three volumes matched B2 setting, NOT the 300 uL dial.**
+Display updated to show B2 volume. Liquid volumes visibly different
+between 50 and 200 uL trials.
+
+**CONCLUSION: Remote serial volume control is CONFIRMED.**
+
+The correct workflow is:
+```
+A0 (handshake) → B0 param=1 (PI mode) → B2 vol×100 (set volume) → B3 param=1 (aspirate) → B3 param=2 (dispense)
+```
+
+This overturns the EXP-044 "FINAL CONCLUSION" that serial-only volume
+control is not possible. The previous 44 experiments tested the calibration
+interface (A5/A6 from PetteCali), not the remote control interface (A0/B0/B2/B3
+from the official DLAB protocol). No MOSFET or hardware modification is needed.
 
 ---
 
