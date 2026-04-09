@@ -177,6 +177,14 @@ See [docs/PROTOCOL_NOTES.md](docs/PROTOCOL_NOTES.md) for the full specification.
 - [Hardware Notes](docs/HARDWARE.md) — CP2102, device connection
 - [Safety Model](docs/SAFETY_MODEL.md) — risks and software guardrails
 
+## Acknowledgments
+
+The official DLAB serial protocol document (`Communication_Protocol_CN.doc`)
+was found in [xg590/Learn_dPettePlus](https://github.com/xg590/Learn_dPettePlus)
+by Xiaokang Guo (NYU). This document was the key to discovering the remote
+control protocol (A0/B0/B2/B3) that enabled serial volume control — the
+single biggest breakthrough in this project.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
