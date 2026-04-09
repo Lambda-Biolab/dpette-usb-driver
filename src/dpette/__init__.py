@@ -11,4 +11,4 @@ __all__ = [
     "WorkingMode",
     "guess_default_port",
 ]
-__version__ = "0.2.0a1"
+__version__ = "0.2.0"
