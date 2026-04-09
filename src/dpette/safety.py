@@ -33,9 +33,9 @@ class SafetyLimits(NamedTuple):
 DEFAULT_LIMITS = SafetyLimits(
     max_volume_ul=1000.0,
     max_cycles=50,
-    max_speed_level=5,
+    max_speed_level=3,
 )
-"""Conservative defaults — tighten once real hardware limits are confirmed."""
+"""Conservative defaults — speed 1-3 per official DLAB protocol."""
 
 
 def validate_volume(volume_ul: float, limits: SafetyLimits) -> None:
