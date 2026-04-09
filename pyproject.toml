@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dpette"
-version = "0.2.0a1"
+version = "0.2.0"
 description = "Reverse-engineered USB/serial driver for DLAB dPette electronic pipettes"
 readme = "README.md"
 license = "MIT"
