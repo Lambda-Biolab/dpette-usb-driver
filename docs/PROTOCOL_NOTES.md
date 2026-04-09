@@ -63,22 +63,23 @@ bytes (B2, B3, B4) between CMD and CHECKSUM.
 
 | CMD byte | Name             | Function in binary | Direction | Confirmed |
 |----------|------------------|--------------------|-----------|-----------|
-| `0xA5`   | HandShake        | FUN_140069c60      | host→dev  | live ✓    |
-| `0xA6`   | SendCaliVolume   | FUN_140069a10      | host→dev  | live ✓    |
-| `0xA4`   | WriteEE          | FUN_140069730      | host→dev  | live ✓    |
-| `0xA3`   | (unknown/data?)  | response handler   | host→dev  | live ✓    |
-| `0xA7`   | (unknown)        | —                  | host→dev  | live ✓    |
-| `0xA0`   | (unknown)        | —                  | host→dev  | live ✓    |
-| `0xA1`   | ReadData1        | —                  | host→dev  | live ✓    |
-| `0xA2`   | ReadData2        | —                  | host→dev  | live ✓    |
-| **`0xB0`** | **Dispense**   | —                  | host→dev  | **live ✓ motor** |
-| **`0xB3`** | **Aspirate**   | —                  | host→dev  | **live ✓ motor** |
-| `0xB1`   | (unknown flag)   | —                  | host→dev  | live ✓    |
-| `0xB2`   | (unknown flag)   | —                  | host→dev  | live ✓    |
-| `0xB4`   | (unknown flag)   | —                  | host→dev  | live ✓    |
-| `0xB5`   | (unknown flag)   | —                  | host→dev  | live ✓    |
-| `0xB6`   | (unknown flag)   | —                  | host→dev  | live ✓    |
-| `0xB7`   | (unknown flag)   | —                  | host→dev  | live ✓    |
+| `0xA0`   | **HELLO**        | —                  | host→dev  | **live ✓ EXP-049** |
+| `0xA1`   | INFO             | —                  | host→dev  | live ✓    |
+| `0xA2`   | STA              | —                  | host→dev  | live ✓    |
+| `0xA3`   | EE_READ          | response handler   | host→dev  | live ✓    |
+| `0xA4`   | EE_WRITE         | FUN_140069730      | host→dev  | live ✓    |
+| `0xA5`   | DEMARCATE        | FUN_140069c60      | host→dev  | live ✓ (cal mode) |
+| `0xA6`   | DMRCT_VOLUM      | FUN_140069a10      | host→dev  | live ✓ (cal only) |
+| `0xA7`   | RESET            | —                  | host→dev  | live ✓    |
+| `0xA8`   | DMRCT_PULSE      | —                  | host→dev  | live ✓    |
+| **`0xB0`** | **WOL (mode)** | —                  | host→dev  | **live ✓ EXP-049** |
+| **`0xB1`** | **SPEED**      | —                  | host→dev  | **live ✓ EXP-049** |
+| **`0xB2`** | **PI_VOLUM**   | —                  | host→dev  | **live ✓ EXP-050 motor** |
+| **`0xB3`** | **KEY (suck/blow)** | —             | host→dev  | **live ✓ EXP-050 motor** |
+| `0xB4`   | ST_VOLUM         | —                  | host→dev  | live ✓    |
+| `0xB5`   | ST_NUM           | —                  | host→dev  | live ✓    |
+| `0xB6`   | DI1_VOLUM        | —                  | host→dev  | live ✓    |
+| `0xB7`   | DI2_VOLUM        | —                  | host→dev  | live ✓    |
 
 CMD bytes extracted from `mov edx, 0xffffffXX` instructions immediately
 before `call rbx` (QByteArray::append) in each packet-builder function.
@@ -336,19 +337,27 @@ was confirmed on a clean device with hands completely off the pipette.
 **Volume:** determined by the physical dial setting.  There is no
 confirmed way to change the volume remotely via serial commands.
 
-### Remote volume control — NOT CONFIRMED
+### Remote volume control — CONFIRMED (EXP-050, 2026-04-09)
 
-A6 changes the display text in calibration mode, but does NOT control
-the actual motor travel.  Tested: A6=10 and A6=100 both aspirated the
-same amount.  Volume is set by the physical dial only.
+**Volume control works via the remote control protocol (B2 PI_VOLUM),
+NOT the calibration interface (A6).**
 
-Calibration mode entry (A5 b2=1) does NOT trigger motor movement by
-itself — confirmed on a clean device.  Earlier observations of motor
-movement during cal mode were caused by physical button presses to
-dismiss Err4, not by the serial command.
+The correct sequence is:
+```
+A0 (handshake) → B0 param=1 (enter PI mode) → B2 vol×100 (set volume)
+  → B3 param=1 (aspirate) → B3 param=2 (dispense)
+```
 
-**Status: remote volume control is NOT available through the known
-protocol.  Volume must be set manually on the pipette.**
+B2 encoding: volume in µL × 100, 24-bit big-endian across bytes[2:4].
+Example: 200 µL → 20000 → `[FE B2 00 4E 20 20]`
+
+Verified on dPette 30-300 µL with dial at 300: B2=50 drew ~50 µL,
+B2=200 drew ~200 µL. Display updated to show B2 volume. Motor travel
+matched B2 setting, not the physical dial.
+
+**A6 (calibration volume) does NOT control motor travel** — this remains
+true. A6 is for the PetteCali calibration workflow only. B2 is the
+correct command for runtime volume control in PI mode.
 
 ### DANGEROUS COMMANDS — DO NOT SEND
 

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 # Confirmed via live hardware probing (2026-04-06).
 DEFAULT_BAUDRATE: int = 9600
-DEFAULT_READ_TIMEOUT: float = 1.0
+DEFAULT_READ_TIMEOUT: float = 10.0
 
 CP210X_VID: int = 0x10C4
 CP210X_PID: int = 0xEA60
