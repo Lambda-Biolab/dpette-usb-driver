@@ -58,7 +58,7 @@ candidates = [
 
 for i, (label, cmd, b2) in enumerate(candidates):
     print(f"\n{'=' * 50}")
-    print(f"[{i+1}/{len(candidates)}] >>> {label}")
+    print(f"[{i + 1}/{len(candidates)}] >>> {label}")
     print("    WATCH FOR DISPENSE (piston pushes down)")
     print(f"{'=' * 50}")
     time.sleep(3.0)

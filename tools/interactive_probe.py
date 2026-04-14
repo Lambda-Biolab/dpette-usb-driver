@@ -46,7 +46,7 @@ cmds = [
 ]
 
 for i, (label, cmd, b2) in enumerate(cmds):
-    print(f"--- [{i+1}/{len(cmds)}] {label} ---")
+    print(f"--- [{i + 1}/{len(cmds)}] {label} ---")
     ans = input("Press ENTER to send (or 'q' to quit): ")
     if ans.strip().lower() == "q":
         break

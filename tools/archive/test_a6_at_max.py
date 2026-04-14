@@ -52,7 +52,7 @@ tests = [
 ]
 
 for i, (label, vol) in enumerate(tests):
-    print(f"--- [{i+1}/{len(tests)}] {label} ---")
+    print(f"--- [{i + 1}/{len(tests)}] {label} ---")
     input("Press ENTER: ")
 
     if vol is not None:

@@ -61,7 +61,7 @@ candidates = [
 ]
 
 for i, (label, cmd, b2) in enumerate(candidates):
-    print(f"--- [{i+1}/{len(candidates)}] {label} ---")
+    print(f"--- [{i + 1}/{len(candidates)}] {label} ---")
     ans = input("Press ENTER to send 3× (or 'q' to quit): ")
     if ans.strip().lower() == "q":
         break
@@ -69,7 +69,7 @@ for i, (label, cmd, b2) in enumerate(candidates):
         pkt = make_pkt(cmd, b2)
         resp = send_recv(ser, pkt, wait=0.3)
         rx = resp.hex(" ") if resp else "(none)"
-        print(f"  [{rep+1}] TX: {pkt.hex(' ')}  RX: {rx}")
+        print(f"  [{rep + 1}] TX: {pkt.hex(' ')}  RX: {rx}")
     note = input("  Display change after 3 sends? ")
     print(f"  >> {note}\n")
 

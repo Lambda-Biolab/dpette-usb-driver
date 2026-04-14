@@ -69,7 +69,7 @@ probes = [
 ]
 
 for i, (label, cmd, b2, b3, b4) in enumerate(probes):
-    print(f"--- [{i+1}/{len(probes)}] {label} ---")
+    print(f"--- [{i + 1}/{len(probes)}] {label} ---")
     ans = input("Press ENTER to send (or 'q' to quit): ")
     if ans.strip().lower() == "q":
         break

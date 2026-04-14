@@ -71,7 +71,7 @@ def main() -> None:
                         pkt = data[i : i + 6]
                         if len(pkt) == 6:
                             print(
-                                f"         pkt[{i//6}]: hdr=0x{pkt[0]:02X} cmd=0x{pkt[1]:02X} "
+                                f"         pkt[{i // 6}]: hdr=0x{pkt[0]:02X} cmd=0x{pkt[1]:02X} "
                                 f"b2=0x{pkt[2]:02X} b3=0x{pkt[3]:02X} b4=0x{pkt[4]:02X} "
                                 f"ck=0x{pkt[5]:02X}"
                             )

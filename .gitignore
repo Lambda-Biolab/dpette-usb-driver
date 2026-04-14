@@ -46,6 +46,9 @@ captures/static-analysis/ghidra-project/
 # Temp logs from live probing
 captures/*.txt
 
+# Vendor documents
+captures/static-analysis/pettecali_instructions.pdf
+
 # OS
 .DS_Store
 Thumbs.db

@@ -41,7 +41,7 @@ def read_all(ser: serial.Serial) -> dict[str, bytes]:
     ]:
         results[name] = send_recv(ser, make_pkt(cmd))
     for cmd in range(0xB0, 0xB8):
-        results[f"B{cmd-0xB0}"] = send_recv(ser, make_pkt(cmd, 0x00))
+        results[f"B{cmd - 0xB0}"] = send_recv(ser, make_pkt(cmd, 0x00))
     return results
 
 

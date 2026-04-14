@@ -144,8 +144,7 @@ class DPetteDriver:
         raw = self._link.read(PACKET_LEN)
         if len(raw) < PACKET_LEN:
             raise TimeoutError(
-                f"Device did not respond within {timeout:.1f}s "
-                f"(got {len(raw)} bytes)"
+                f"Device did not respond within {timeout:.1f}s (got {len(raw)} bytes)"
             )
         return decode_packet(raw)
 
