@@ -68,7 +68,7 @@ def main() -> None:
 
     for i, (label, cmd, b2) in enumerate(probes):
         pkt = make_pkt(cmd, b2)
-        print(f"\n[{i+1}/{len(probes)}] >>> {label}")
+        print(f"\n[{i + 1}/{len(probes)}] >>> {label}")
         print(f"    TX: {pkt.hex(' ')}")
         resp = send_recv(ser, pkt)
         print(f"    RX: {resp.hex(' ') if resp else '(none)'}")

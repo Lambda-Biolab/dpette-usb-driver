@@ -51,9 +51,9 @@ def read_state(label: str) -> None:
         resp = send_recv(ser, make_pkt(cmd, 0x00), wait=0.3)
         b2_val = resp[2] if len(resp) > 2 else -1
         print(
-            f"    B{cmd-0xB0} status: b2=0x{b2_val:02X}"
+            f"    B{cmd - 0xB0} status: b2=0x{b2_val:02X}"
             if b2_val >= 0
-            else f"    B{cmd-0xB0}: (none)"
+            else f"    B{cmd - 0xB0}: (none)"
         )
     print()
 
@@ -71,7 +71,7 @@ steps = [
 ]
 
 for i, (label, action) in enumerate(steps):
-    print(f"=== Step {i+1}/{len(steps)}: {label} ===")
+    print(f"=== Step {i + 1}/{len(steps)}: {label} ===")
 
     if action == "aspirate":
         input("Press ENTER to aspirate: ")

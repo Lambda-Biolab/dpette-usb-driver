@@ -53,6 +53,7 @@ max-complexity = 10
 
 [tool.ruff.lint.per-file-ignores]
 "tools/*" = ["E501", "B007", "SIM115"]
+"tools/archive/*" = ["E501", "B007", "SIM115", "C901"]
 "examples/*" = ["E501"]
 
 [tool.mypy]

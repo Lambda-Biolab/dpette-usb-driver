@@ -1,5 +1,5 @@
 # Lychee link checker config
-accept = [200, 201, 204, 429]
+accept = [200, 201, 202, 204, 429]
 timeout = 30
 max_retries = 2
 
@@ -8,4 +8,5 @@ exclude = [
     "^https://github\\.com/Lambda-Biolab/",
     "^https://hub\\.docker\\.com",
     "^https://pypi\\.org",
+    "^https://www\\.dlab\\.com\\.cn",
 ]
