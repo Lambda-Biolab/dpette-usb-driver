@@ -14,6 +14,10 @@ modes (pipetting, splitting, dilution) — no hardware modifications needed.
 Uses the Silicon Labs **CP2102** USB-UART bridge (VID `0x10C4`, PID `0xEA60`)
 at 9600 baud 8N1.
 
+![dPette 8-channel with USB-UART bridge attached](docs/dpette-multichannel.png)
+
+*Verified on the 8-channel dPette — same CP2102 bridge, same 6-byte protocol.*
+
 ## Why this matters
 
 There is **no open-source, disposable-tip, API-controlled pipette** at
@@ -34,6 +38,7 @@ this price point.
 - **Speed control** — 3 speed levels for aspirate and dispense
 - **Mixing** — aspirate/dispense cycling with caller-controlled tip position
 - **EEPROM read/write** — firmware version, calibration coefficients
+- **Single- and multichannel** — verified on the 8-channel dPette
 - 94 tests passing, 55 experiments documented
 
 ## Quickstart
