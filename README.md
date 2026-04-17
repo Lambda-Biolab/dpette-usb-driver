@@ -158,9 +158,10 @@ See [docs/PROTOCOL_NOTES.md](docs/PROTOCOL_NOTES.md) for the full specification.
 ## Known issues
 
 - **Err4 on startup**: Caused by `A5 b2=1` (calibration mode entry via
-  serial). Persists across reboots. Cannot be cleared via serial — only
-  PetteCali (Windows) fixes it. Dismiss by holding the button. All serial
-  operations work normally after dismissal.
+  serial). Persists across reboots. Cannot be cleared via serial — the
+  error has never been resolved, including via PetteCali (Windows).
+  Dismiss by holding the button. All serial operations work normally
+  after dismissal.
 - **DI mode dispense**: B3 blow doesn't trigger motor on basic dPette.
   Workaround: `enter_mode(WorkingMode.PI)` homes the motor and expels liquid.
 - **Piston return suction**: B3 blow includes a piston return to home.

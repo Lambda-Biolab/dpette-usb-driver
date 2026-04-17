@@ -47,8 +47,9 @@ reverse-engineering.
 
 Sending `A5 b2=1` (enter calibration mode) sets a persistent flag
 that causes Err4 on every subsequent reboot.  This was confirmed on
-two separate devices and **cannot be cleared** without running a full
-calibration through PetteCali (Windows software).
+two separate devices and **has never been cleared** by any known
+method, including a full calibration through PetteCali (Windows
+software) and its ResetFactory command.
 
 **Mitigation:** the driver NEVER sends `A5 b2=1`.  The `connect()`
 method uses only `A5 b2=0` (handshake) and `B0 b2=1` (prime).

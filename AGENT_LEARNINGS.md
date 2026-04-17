@@ -15,8 +15,9 @@ Each entry follows: **Context** / **Problem** / **Solution**
   Err4 on every subsequent power-on. Cannot be cleared via serial commands.
   Confirmed on two separate devices.
 - **Solution:** Never send `A5 b2=1`. The driver uses only `A5 b2=0` for
-  handshake. Clearing Err4 requires PetteCali (Windows software) with a
-  full calibration cycle.
+  handshake. Err4 has never been cleared by any known method, including
+  PetteCali (Windows) WriteData and ResetFactory. Dismiss with the
+  physical button on each boot.
 
 ### 2. B3 KEY produces double response
 

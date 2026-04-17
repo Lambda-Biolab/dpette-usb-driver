@@ -791,7 +791,8 @@ from the official DLAB protocol). No MOSFET or hardware modification is needed.
 ## Known side effects from experiments
 
 1. **Persistent Err4 on 30-300 device** — from EXP-018 cal mode entry.
-   Dismiss with button. PetteCali WriteData clears it.
+   Dismiss with button. Never cleared — PetteCali WriteData and
+   ResetFactory did not resolve it.
 2. **Persistent Err4 on 10-100 device** — from EXP-027 cal mode entry.
    Same behavior.
 3. **Dummy calibration on 30-300 device** — k=1.2313, b=0.0000 written

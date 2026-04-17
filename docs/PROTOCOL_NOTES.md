@@ -375,10 +375,11 @@ persistent flag that causes Err4 on every subsequent reboot.
 and 10-100 µL).  Both now show Err4 on every power-on.  The error
 must be dismissed with the physical button each time.
 
-**How to fix:** Complete a full calibration through PetteCali
-(Windows software) and click WriteData.  The physical factory reset
-button does NOT clear this flag.  PetteCali's ResetFactory also does
-NOT clear it — only WriteData after a complete 3-step calibration.
+**Status:** No known fix.  The physical factory reset button does NOT
+clear this flag.  PetteCali's ResetFactory does NOT clear it.  A full
+3-step PetteCali calibration followed by WriteData also does NOT clear
+it.  The error must be dismissed with the physical button on every
+boot; all serial operations work normally after dismissal.
 
 **Other risky commands:**
 - `A4` (WriteEE) — writes to device EEPROM.  Incorrect values can
@@ -401,7 +402,9 @@ reclassified as dead ends in EXPERIMENT_LOG.md.
    without triggering Err4?  PetteCali manages this somehow.
 4. **Volume readback** — no command was found to read the current volume
    setting from the device
-5. **Persistent Err4** — how to clear the startup error without PetteCali
+5. **Persistent Err4** — no known way to clear the startup error; persists
+   through PetteCali WriteData, ResetFactory, and the physical factory
+   reset button
 
 ## Next steps
 
