@@ -7,6 +7,10 @@ owner: "lambda biolab"
 
 # dpette-usb-driver
 
+[![CodeFactor](https://www.codefactor.io/repository/github/lambda-biolab/dpette-usb-driver/badge)](https://www.codefactor.io/repository/github/lambda-biolab/dpette-usb-driver)
+[![CodeQL](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/codeql.yml/badge.svg)](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/codeql.yml)
+[![Dependabot](https://img.shields.io/badge/dependabot-enabled-blue?logo=dependabot)](https://github.com/Lambda-Biolab/dpette-usb-driver/network/updates)
+
 Open-source Python driver for **DLAB dPette** and **dPette+** electronic
 pipettes. Full serial volume control, speed control, and three operating
 modes (pipetting, splitting, dilution) — no hardware modifications needed.
