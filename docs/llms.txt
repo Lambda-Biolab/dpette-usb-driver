@@ -1,0 +1,26 @@
+# dpette-usb-driver
+
+> Opensource USB driver for dpette and dpette+ electronic pipettes
+
+## Documentation
+
+- [README](https://github.com/Lambda-Biolab/dpette-usb-driver/blob/main/README.md)
+- [AGENTS](https://github.com/Lambda-Biolab/dpette-usb-driver/blob/main/AGENTS.md)
+- [CONTRIBUTING](https://github.com/Lambda-Biolab/dpette-usb-driver/blob/main/CONTRIBUTING.md)
+- [Protocol Notes](https://github.com/Lambda-Biolab/dpette-usb-driver/blob/main/docs/PROTOCOL_NOTES.md)
+- [Safety Model](https://github.com/Lambda-Biolab/dpette-usb-driver/blob/main/docs/SAFETY_MODEL.md)
+- [Hardware](https://github.com/Lambda-Biolab/dpette-usb-driver/blob/main/docs/HARDWARE.md)
+- [Experiment Log](https://github.com/Lambda-Biolab/dpette-usb-driver/blob/main/docs/EXPERIMENT_LOG.md)
+
+## Source
+
+- [driver.py](https://github.com/Lambda-Biolab/dpette-usb-driver/blob/main/src/dpette/driver.py): High-level API (connect, aspirate, dispense, mix)
+- [protocol.py](https://github.com/Lambda-Biolab/dpette-usb-driver/blob/main/src/dpette/protocol.py): 6-byte packet encode/decode, command enums
+- [serial_link.py](https://github.com/Lambda-Biolab/dpette-usb-driver/blob/main/src/dpette/serial_link.py): Thin pyserial wrapper
+- [safety.py](https://github.com/Lambda-Biolab/dpette-usb-driver/blob/main/src/dpette/safety.py): Volume/speed validation, cycle-count limits
+- [config.py](https://github.com/Lambda-Biolab/dpette-usb-driver/blob/main/src/dpette/config.py): SerialConfig, port discovery
+
+## Tools
+
+- [interactive_probe.py](https://github.com/Lambda-Biolab/dpette-usb-driver/blob/main/tools/interactive_probe.py): Interactive probing
+- [capture_usb.py](https://github.com/Lambda-Biolab/dpette-usb-driver/blob/main/tools/capture_usb.py): USB traffic capture
