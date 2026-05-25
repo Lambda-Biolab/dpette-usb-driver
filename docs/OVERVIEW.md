@@ -9,7 +9,7 @@ owner: "lambda biolab"
 
 ## Physical architecture
 
-```
+```text
 ┌──────────────────────────────────────────────────────────┐
 │ Host PC                                                  │
 │                                                          │
@@ -91,7 +91,7 @@ owner: "lambda biolab"
 
 ## Dependency rules
 
-```
+```text
 driver.py  →  safety.py
 driver.py  →  protocol.py  →  (no further internal deps)
 driver.py  →  serial_link.py  →  pyserial

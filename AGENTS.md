@@ -6,7 +6,7 @@ pipettes. Provides full serial volume control over USB-UART (CP2102) at
 
 ## Architecture
 
-```
+```text
 src/dpette/
   driver.py        — High-level API (connect, aspirate, dispense, mix, split, dilute)
   protocol.py      — 6-byte packet encode/decode, command enums, working modes
@@ -19,12 +19,14 @@ src/dpette/
 ## Domain Rules
 
 ### Protocol invariants
+
 - All packets are exactly 6 bytes: `[0xFE] [CMD] [B2] [B3] [B4] [CHECKSUM]`
 - Checksum = `sum(bytes[1:5]) & 0xFF`
 - Volumes are encoded as micro-litres x 100 in 24-bit big-endian
 - B3 (KEY) commands produce a **double response** — always read both
 
 ### Safety-critical constraints
+
 - **NEVER send `A5 b2=1`** (calibration mode entry) — causes persistent
   Err4 that survives reboots and cannot be cleared via serial
 - `driver.py` must only send packets produced by `protocol.encode_packet()`;
@@ -34,15 +36,18 @@ src/dpette/
 - Cycle counter (`MAX_CONTIGUOUS_CYCLES = 50`) prevents unattended runaway
 
 ### DI mode workaround
+
 B3 blow does not trigger the motor on basic dPette in dilution mode.
 Workaround: call `enter_mode(WorkingMode.PI)` which homes the motor and
 expels liquid.
 
 ### Piston return suction
+
 B3 blow includes a piston return to home position. If the tip is submerged,
 this draws extra liquid. Always dispense with tip above liquid surface.
 
 ### EEPROM writes
+
 Writing incorrect calibration values (k/b coefficients) via `A4` can break
 motor control. `write_ee()` is provisional — do not use without understanding
 the exact byte layout.
@@ -63,6 +68,7 @@ make check_docs        # markdownlint
 ```
 
 Tests requiring a physical device use `@pytest.mark.hardware` and run with:
+
 ```bash
 pytest -m hardware
 ```
