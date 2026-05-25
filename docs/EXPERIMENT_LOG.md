@@ -52,10 +52,12 @@ not the app binary. The 7-byte format was wrong.
 `mov edx, 0xfffffffe` (header), `mov edx, 0xffffffa4` (WriteEE),
 `mov edx, 0xffffffa6` (SendCaliVolume), `mov edx, 0xffffffa5` (HandShake)
 **Result:** ✅ **FIRST CONTACT** — HandShake responded:
-```
+
+```text
 TX: fe a5 00 00 00 a5
 RX: fd a5 00 00 00 a5
 ```
+
 **Key finding:** TX header=0xFE, RX header=0xFD, 6-byte packets, checksum validated
 
 ---
@@ -84,6 +86,7 @@ addresses 0x37-0xFF → response b2=0x01. Not actual data.
 
 **Script:** `tools/probe_response_format.py`
 **Key findings:**
+
 - Bad checksums → no response (checksum IS validated)
 - 7-byte packets → no response (format IS 6 bytes)
 - CMD=0xA3 returns different byte[2] values depending on device state
@@ -113,6 +116,7 @@ Three write format hypotheses all failed to produce readable changes.
 
 **Script:** `tools/brute_cmd.py`
 **Result:** ✅ **MAJOR DISCOVERY** — 17 responding commands:
+
 - 0xA0-0xA8 (calibration range, previously known)
 - **0xB0-0xB7** (new range! previously untested)
 - 0xA1, 0xA2 return **13-byte** responses (not 6)
@@ -123,6 +127,7 @@ Three write format hypotheses all failed to produce readable changes.
 
 **Script:** `tools/interactive_probe.py` (run by user in terminal)
 **Result:** ✅ **MOTOR CONTROL FOUND:**
+
 - **B3 b2=0x01 = ASPIRATE** — 12-byte double response, confirmed motor movement
 - **B0 b2=0x01 = DISPENSE** — 6-byte response, confirmed motor movement
 - B1, B2, B4-B7 = no visible effect
@@ -173,6 +178,7 @@ Tested with ×10 encoding, raw encoding, and b4=1 trigger flag.
 **Script:** `tools/test_a6_then_aspirate.py`
 **Hypothesis:** A6 sets motor travel, then B3 aspirates at that volume
 **Results (display at 100 µL):**
+
 - A6=30 → drew 30 µL ← appeared to work!
 - A6=150 → drew 100 µL ← did not work
 - A6=300 → drew 100 µL ← did not work
@@ -194,6 +200,7 @@ A6 does NOT control motor travel in normal mode.
 
 **Script:** `tools/test_cali_mode.py`
 **Result:** ✅ **BREAKTHROUGH:**
+
 - A5 b2=1 enters calibration mode (different display menu)
 - **A6=50 changed display to 50 µL in cal mode**
 - **A6=150 changed display to 150 µL in cal mode**
@@ -207,6 +214,7 @@ A6 does NOT control motor travel in normal mode.
 
 **Script:** `tools/test_cali_volume_persist.py`
 **Result:** Partial success:
+
 - Set 50 µL via cal mode → aspirate drew 50 µL ✅
 - Set 150 µL via cal mode → aspirate drew 50 µL ❌ (first value stuck)
 - Set 250 µL via cal mode → aspirate drew 50 µL ❌
@@ -246,9 +254,11 @@ completed the calibration session in the device's state machine.
 
 **Script:** `tools/exit_cal_and_test.py`
 **Result:** ✅ **FIX FOUND:**
-```
+
+```text
 Handshake (A5 b2=0) → Enter cal (A5 b2=1) → Exit cal (A5 b2=0) → B3 aspirate WORKS
 ```
+
 The cal mode toggle clears the stale state that blocks B3.
 Motor OK — 12-byte double response confirmed.
 
@@ -277,6 +287,7 @@ A0 (b2=0/1), A7 (b2=0/1), B1-B7 (b2=1)
 | 150 µL    | (in cal)| No (re-sent A5 b2=1 in cal)   |
 
 **Conclusion:** The complete remote pipetting flow is:
+
 1. `A5 b2=0` (handshake)
 2. `A6` (set volume)
 3. `A5 b2=1` (enter cal mode = ASPIRATE at A6 volume)
@@ -327,6 +338,7 @@ through the calibration protocol alone.**
 
 **Device:** Second dPette, 10-100 µL range, never touched before
 **Results:**
+
 - Handshake works ✓
 - B3 b2=1 alone → REJECTED (same as corrupted device)
 - A5 b2=1 (enter cal) → causes persistent Err4, NO motor movement
@@ -342,6 +354,7 @@ A5 b2=1 causes Err4 on clean devices too.
 **Device:** 10-100 µL dPette (in cal mode state from EXP-027)
 **Sequence:** Handshake → B0 b2=1 → B3 b2=1
 **Result:** ✅ **B3 WORKS after B0 prime!**
+
 - B0 b2=1: 6-byte ACK
 - B3 b2=1: 12-byte double response, motor aspirated
 - Repeated 3 times successfully
@@ -410,6 +423,7 @@ Write: `FE A4 00 [ADDR] [VALUE] [CHECKSUM]` — address in byte[3], value in byt
 All our prior EEPROM attempts failed because we put the address in byte[2].
 
 **PetteCali calibration sequence observed:**
+
 1. `FE A8 01 68 09 38` — device config/init
 2. `FE A0 00 00 00 A0` — status check (×2)
 3. `FE A3 00 80..AD` — read all EEPROM (46 addresses, each sent twice)
@@ -420,12 +434,14 @@ All our prior EEPROM attempts failed because we put the address in byte[2].
 8. `FE A5` — handshake close
 
 **WriteData sequence:**
+
 - `FE A4 00 90..9F [VALUE]` — write k/b coefficients (seg1 + seg2)
 - `FE A0` — status check
 - `FE A3 00 80..AD` — re-read all EEPROM to verify
 - Each write sent twice (retry pattern)
 
 **WriteEE values captured (k=1.2268, b=0.0000):**
+
 - 0x90: 0x00, 0x91: 0x00, 0x92: 0x2F, 0x93: 0xEC (k bytes)
 - 0x94-0x97: all 0x00 (b bytes)
 - 0x98-0x9F: same pattern for seg2
@@ -434,7 +450,7 @@ All our prior EEPROM attempts failed because we put the address in byte[2].
 
 ### Summary of confirmed working protocol
 
-```
+```text
 Handshake  [FE A5 00 00 00 A5]
 B0 prime   [FE B0 01 00 00 B1]  ← once per session, primes piston
 B3 aspirate [FE B3 01 00 00 B4] → 12-byte response, aspirates at dial vol
@@ -449,6 +465,7 @@ Tested on both 10-100 µL (clean) and 30-300 µL (recalibrated) devices.
 
 **Device:** 30-300 µL dPette
 **Result:** Full EEPROM dump revealed:
+
 - 0x00: zero (only zero among surrounding 0xFF bytes)
 - 0x01-0x3F: all 0xFF (unused/erased EEPROM)
 - 0x42: 0x00 (zero among 0xFF — tested as Err4 flag, NOT it)
@@ -458,6 +475,7 @@ Tested on both 10-100 µL (clean) and 30-300 µL (recalibrated) devices.
 - 0xD2-0xD3: 0x0B 0xB8 = 3000 (300 µL × 10)
 
 **Err4 flag tests:**
+
 - Wrote 0xFF to 0x42 → error changed to Err2, restored to 0x00
 - Wrote 0x00 to 0xC4/0xC5 → no change
 - Wrote 0x03 to 0x80 (cal point count) → no change
@@ -500,6 +518,7 @@ This is exactly how PetteCali's calibration works: software sets the
 volume, user presses the button to aspirate at each measurement point.
 
 **Complete remote volume control flow (requires physical button actuation):**
+
 1. Enter cal mode: `FE A5 01 00 00 A6` (dismiss Err4)
 2. Set volume: `FE A6 [vol_hi] [vol_lo] 00 [cksum]` (vol = µL × 10)
 3. Physical button press → aspirates at A6 volume
@@ -508,6 +527,7 @@ volume, user presses the button to aspirate at each measurement point.
 
 **Remaining blocker:** The physical button press cannot be triggered via
 serial. For full automation, need either:
+
 - Physical actuator (servo/solenoid) on the button
 - RP2040 MitM intercepting the button GPIO line
 - Firmware patch to add a serial button-press command
@@ -617,13 +637,15 @@ cycle with volume changes between aspirations.
 | Dispense | B0 serial | — | ✅ dispensed |
 
 **Also confirmed:**
+
 - B0 dispense works immediately after button aspirate in cal mode ✓
 - A6 can change volume between cycles without exiting cal mode ✓
 - B3 is rejected in cal mode (as expected) ✓
 - No need to exit/re-enter cal mode between cycles ✓
 
 **Confirmed automation flow (requires MOSFET on button):**
-```
+
+```text
 Enter cal mode (once) → for each cycle:
   A6 set volume (serial) → button press (MOSFET) → B0 dispense (serial)
 ```
@@ -708,6 +730,7 @@ provide volume-controlled aspiration via serial.
 **Device:** 30-300 µL dPette
 **Hypothesis:** CP2102 DTR/RTS lines may be wired to MCU reset/boot pins
 **Tested:**
+
 - DTR toggle (reset) — no display change
 - RTS toggle — no change
 - DTR+RTS together (boot mode) — no change, no bootloader response
@@ -745,6 +768,7 @@ PetteCali). The remote control interface uses A0/B0/B1/B2/B3.
 **Device:** dPette on /dev/cu.usbserial-0001
 **Script:** `examples/test_remote_mode.py`
 **Results:**
+
 - A0 handshake: accepted (p1=0) — this is the REAL handshake, not A5
 - B0 param=1 (enter PI mode): accepted, motor homed
 - B1 speed control (suck=2, blow=2): both accepted
@@ -766,6 +790,7 @@ prior experiments). B2 volume was accepted but needed volume verification.
 If motor travel matches B2 (not dial), volume control is confirmed.
 
 **Results:**
+
 - Trial 1 (B2=50 uL): motor moved, display changed to 50, SMALL aspirate
 - Trial 2 (B2=200 uL): motor moved, display changed to 200, MEDIUM aspirate
 - Trial 3 (B2=50 uL): motor moved, display changed to 50, SMALL aspirate
@@ -777,7 +802,8 @@ between 50 and 200 uL trials.
 **CONCLUSION: Remote serial volume control is CONFIRMED.**
 
 The correct workflow is:
-```
+
+```text
 A0 (handshake) → B0 param=1 (PI mode) → B2 vol×100 (set volume) → B3 param=1 (aspirate) → B3 param=2 (dispense)
 ```
 

@@ -135,7 +135,7 @@ mypy src/               # type check
 
 All communication uses 6-byte packets:
 
-```
+```text
 [0xFE] [CMD] [B2] [B3] [B4] [CHECKSUM]   host → device
 [0xFD] [CMD] [B2] [B3] [B4] [CHECKSUM]   device → host
 ```

@@ -34,12 +34,13 @@ Actual application binary: `captures/static-analysis/extracted/app/PetteCali.exe
 
 All packets are **6 bytes**:
 
-```
+```text
 [HEADER] [CMD] [B2] [B3] [B4] [CHECKSUM]
  1 byte  1 byte 1    1    1     1 byte
 ```
 
 **Header bytes:**
+
 - Host → device: `0xFE`
 - Device → host: `0xFD`
 
@@ -88,7 +89,7 @@ before `call rbx` (QByteArray::append) in each packet-builder function.
 
 **HandShake / StartCalibrate (0xA5):**
 
-```
+```text
 TX: [FE] [A5] [param] [00] [00] [cksum]
 RX: [FD] [A5] [00]    [00] [00] [A5]
 ```
@@ -104,7 +105,7 @@ RX: [FD] [A5] [00]    [00] [00] [A5]
 
 **SendCaliVolume (0xA6):**
 
-```
+```text
 TX: [FE] [A6] [vol_hi] [vol_lo] [00] [cksum]
 RX: [FD] [A6] [00]     [00]     [00] [A6]
 ```
@@ -120,7 +121,7 @@ RX: [FD] [A6] [00]     [00]     [00] [A6]
 
 **WriteEE (0xA4) — CONFIRMED from PetteCali capture:**
 
-```
+```text
 TX: [FE] [A4] [00] [ADDR] [VALUE] [cksum]
 RX: [FD] [A4] [??] [00]   [00]   [cksum]
 ```
@@ -132,7 +133,7 @@ RX: [FD] [A4] [??] [00]   [00]   [cksum]
 
 **ReadEE (0xA3) — CONFIRMED from PetteCali capture:**
 
-```
+```text
 TX: [FE] [A3] [00] [ADDR] [00] [cksum]
 RX: [FD] [A3] [VALUE] [00] [00] [cksum]
 ```
@@ -145,7 +146,7 @@ RX: [FD] [A3] [VALUE] [00] [00] [cksum]
 
 **Aspirate (0xB3) — CONFIRMED live, motor movement:**
 
-```
+```text
 TX: [FE] [B3] [01] [00] [00] [B4]
 RX: [FD] [B3] [00] [00] [00] [B3]   ← motor started
     [FD] [B3] [01] [00] [00] [B4]   ← motor finished (12 bytes total)
@@ -161,7 +162,7 @@ RX: [FD] [B3] [00] [00] [00] [B3]   ← motor started
 
 **Dispense / Prime (0xB0) — CONFIRMED live, motor movement:**
 
-```
+```text
 TX: [FE] [B0] [01] [00] [00] [B1]
 RX: [FD] [B0] [00] [00] [00] [B0]
 ```
@@ -175,7 +176,7 @@ RX: [FD] [B0] [00] [00] [00] [B0]
 
 **Data dump commands (0xA1, 0xA2) — 13-byte responses:**
 
-```
+```text
 TX: [FE] [A1] [b2] [b3] [b4] [cksum]
 RX: [FD] [A1] [00] [00] [00] [00] [00] [00] [00] [00] [00] [00] [A1]
 ```
@@ -189,7 +190,7 @@ RX: [FD] [A1] [00] [00] [00] [00] [00] [00] [00] [00] [00] [00] [A1]
 
 All observed device responses are 6 bytes:
 
-```
+```text
 [0xFD] [CMD_ECHO] [B2] [B3] [B4] [CHECKSUM]
 ```
 
@@ -292,6 +293,7 @@ FUN_14001d850 (`readData` slot, connected to `QSerialPort::readyRead`):
    which EEPROM address was being read, extracts value via FUN_140069e00
 
 FUN_14001af80 (buffered frame parser):
+
 - Same dispatch logic for frames assembled across multiple readyRead calls
 - Same flag-based state machine for 0xA3 data
 
@@ -304,7 +306,7 @@ Response timeout: 1000ms per read (`_timerRead->start(1000)`).
 Tested on clean dPette 10-100 µL.  Set volume on the physical dial,
 then control aspirate/dispense remotely.
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │ Prerequisites:                                          │
 │   - Set volume on pipette dial/buttons                  │
@@ -343,7 +345,8 @@ confirmed way to change the volume remotely via serial commands.
 NOT the calibration interface (A6).**
 
 The correct sequence is:
-```
+
+```text
 A0 (handshake) → B0 param=1 (enter PI mode) → B2 vol×100 (set volume)
   → B3 param=1 (aspirate) → B3 param=2 (dispense)
 ```
@@ -364,7 +367,7 @@ correct command for runtime volume control in PI mode.
 The following command **permanently damages device state** and should
 NOT be sent during normal operation:
 
-```
+```text
 ⚠️  [FE A5 01 00 00 A6]  — Enter Calibration Mode (A5 b2=1)
 ```
 
@@ -382,6 +385,7 @@ it.  The error must be dismissed with the physical button on every
 boot; all serial operations work normally after dismissal.
 
 **Other risky commands:**
+
 - `A4` (WriteEE) — writes to device EEPROM.  Incorrect values can
   affect calibration accuracy.  Our experiments wrote k=1.2313,
   b=0.0000 to the 30-300 device, which may have broken motor control

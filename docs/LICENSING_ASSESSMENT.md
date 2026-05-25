@@ -13,9 +13,9 @@ Reverse engineering of communication protocols for interoperability is
 protected under:
 
 - **US:** DMCA §1201(f) interoperability exception
-  — https://www.law.cornell.edu/uscode/text/17/1201
+  — <https://www.law.cornell.edu/uscode/text/17/1201>
 - **EU:** Software Directive 2009/24/EC, Article 6
-  — https://eur-lex.europa.eu/eli/dir/2009/24/oj
+  — <https://eur-lex.europa.eu/eli/dir/2009/24/oj>
 
 No DRM, encryption, or access controls are circumvented. The driver observes
 and speaks a plaintext serial protocol over standard UART hardware.
@@ -46,5 +46,5 @@ and speaks a plaintext serial protocol over standard UART hardware.
 
 ## References
 
-- DLAB Scientific (vendor): https://www.dlab.com.cn
+- DLAB Scientific (vendor): <https://www.dlab.com.cn>
 - xg590/Learn_dPettePlus (prior art, third-party RE): referenced in README

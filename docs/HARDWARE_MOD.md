@@ -50,7 +50,7 @@ All items are in stock with 1–2 business day delivery.
 The DEBO LOGIC 4CH board exposes 4× BSS138 MOSFETs on 2.54mm headers.
 Use one channel (e.g. channel 1):
 
-```
+```text
 Pico GP15 ──── LV1 pin (board)
 Pico 3V3  ──── LV  pin (board)
 Pico GND  ──── GND pin (LV side)
@@ -75,8 +75,9 @@ Place the 40-pin header strip into the breadboard (to hold it straight), rest
 the Pico on top, solder all 40 pins. ~10 minutes.
 
 **2. Flash MicroPython firmware**  
+
 - Hold `BOOTSEL` while plugging in the micro-USB cable → mounts as `RPI-RP2`
-- Download MicroPython `.uf2` from https://micropython.org/download/RPI_PICO2
+- Download MicroPython `.uf2` from <https://micropython.org/download/RPI_PICO2>
 - Drag the `.uf2` onto the `RPI-RP2` drive → Pico reboots automatically
 
 **3. Verify in REPL**  
@@ -87,9 +88,9 @@ Type `print("ok")` at the `>>>` prompt to confirm firmware is running.
 
 ### Phase B — Wire the level shifter
 
-**4. Insert DEBO LOGIC 4CH into breadboard**
+#### 4. Insert DEBO LOGIC 4CH into breadboard
 
-**5. Connect Pico → level shifter**
+#### 5. Connect Pico → level shifter
 
 | Pico pin | Board pin | Notes |
 |----------|-----------|-------|
@@ -115,6 +116,7 @@ Set multimeter to continuity mode. Probe the button pads while pressing it —
 beeps when you find the two pads that complete the circuit.
 
 **9. Solder two short wires (~5cm) to the button pads**  
+
 - Apply flux to each pad
 - Tin the pad, tack one wire per pad
 - Verify no solder bridges to adjacent components
@@ -122,7 +124,7 @@ beeps when you find the two pads that complete the circuit.
 **10. Route wires out of the pipette**  
 Thread wires through a gap in the case seam or a 2mm drilled hole. Close the case.
 
-**11. Connect button wires to level shifter**
+#### 11. Connect button wires to level shifter
 
 | Wire | Board pin |
 |------|-----------|
@@ -133,7 +135,7 @@ Thread wires through a gap in the case seam or a 2mm drilled hole. Close the cas
 
 ### Phase D — Test
 
-**12. Quick MicroPython test**
+#### 12. Quick MicroPython test
 
 ```python
 from machine import Pin
@@ -148,7 +150,7 @@ button.value(0)    # MOSFET OFF → button released
 With the pipette in calibration mode and A6 set, this should trigger
 aspiration. You should hear the motor.
 
-**13. Full automation cycle test**
+#### 13. Full automation cycle test
 
 ```python
 # Enter cal mode via MOSFET button press (NOT serial A5 b2=1 — causes Err4)

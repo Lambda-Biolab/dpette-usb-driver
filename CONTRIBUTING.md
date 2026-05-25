@@ -30,7 +30,7 @@ All tests use mock serial ports — you don't need a pipette connected.
 
 ## Code structure
 
-```
+```text
 src/dpette/
   protocol.py      — packet encode/decode (the protocol bible)
   driver.py        — high-level API (connect, aspirate, dispense)
@@ -49,6 +49,7 @@ docs/              — protocol spec, experiment log, hardware notes
 When probing the device with new commands, follow this pattern:
 
 1. **Create an interactive script** in `tools/` with logging:
+
    ```python
    LOGFILE = "captures/live_log.txt"
    _log = open(LOGFILE, "w")
