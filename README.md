@@ -1,11 +1,12 @@
 <!-- markdownlint-disable MD033 -->
 # dpette-usb-driver
 
-[![License](https://img.shields.io/badge/license-MIT-58f4c2.svg)](LICENSE)
 ![Version](https://img.shields.io/badge/version-0.2.0-58f4c2.svg)
-[![CodeFactor](https://www.codefactor.io/repository/github/lambda-biolab/dpette-usb-driver/badge)](https://www.codefactor.io/repository/github/lambda-biolab/dpette-usb-driver)
-[![CodeQL](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/codeql.yml/badge.svg)](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/codeql.yml)
-[![Dependabot Updates](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/dependabot/dependabot-updates)
+[![License](https://img.shields.io/badge/license-MIT-58f4c2.svg)](LICENSE)
+[![CI](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/ci.yml)
+[![Dependabot Updates](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/dependabot/dependabot-updates/badge.svg?branch=main)](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/dependabot/dependabot-updates)
+[![CodeQL](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/codeql.yml)
+[![CodeFactor](https://www.codefactor.io/repository/github/lambda-biolab/dpette-usb-driver/badge/main)](https://www.codefactor.io/repository/github/lambda-biolab/dpette-usb-driver)
 
 Open-source Python driver for **DLAB dPette** and **dPette+** electronic
 pipettes. Full serial volume control, speed control, and three operating
