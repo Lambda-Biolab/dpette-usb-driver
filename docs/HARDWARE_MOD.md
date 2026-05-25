@@ -192,12 +192,7 @@ See `examples/volume_control.py` for the complete integration.
 
 ## Cost in context
 
-| Solution | Total cost | Disposable tips | Serial volume control |
-|----------|------------|-----------------|----------------------|
-| **dPette + this mod** | **~$150** | **Yes** | **Yes (A6 + MOSFET)** |
-| INTEGRA VIAFLO + ASSIST stand | ~$4,000+ | Yes | Partial |
-| Opentrons OT-2 (full robot) | ~$10,000+ | Yes | Full API |
-| ac-rad Digital Pipette v2 | ~$200 | No (syringe) | Arduino |
-
-The dPette + MOSFET mod is the only open-source, disposable-tip,
-API-controlled pipette under $200.
+The MOSFET parts add ~€5 (one DEBO LOGIC 4CH board) on top of the
+~$80–130 dPette. See the
+[comparison table in the root README](../README.md#why-this-matters)
+for how this stacks up against commercial liquid handlers.
