@@ -48,6 +48,68 @@ def send_recv(ser: serial.Serial, pkt: bytes, label: str = "") -> bytes | None:
     return resp if resp else None
 
 
+def read_u16(eeprom: dict[int, int], base: int) -> int | None:
+    lo = eeprom.get(base)
+    hi = eeprom.get(base + 1)
+    if lo is None or hi is None:
+        return None
+    return (hi << 8) | lo
+
+
+def read_u32(eeprom: dict[int, int], base: int) -> int | None:
+    parts = [eeprom.get(base + i) for i in range(4)]
+    if any(p is None for p in parts):
+        return None
+    b0, b1, b2, b3 = parts
+    return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0  # type: ignore[operator]
+
+
+def read_eeprom_map(ser: serial.Serial, addresses: range) -> dict[int, int]:
+    eeprom: dict[int, int] = {}
+    for addr in addresses:
+        resp = send_recv(ser, make_read_ee(addr), f"addr=0x{addr:02X}")
+        # Response format: [0xFD] [CMD] [addr_hi] [addr_lo] [VALUE] [CHECKSUM]
+        if resp and len(resp) == 6:
+            eeprom[addr] = resp[4]
+        time.sleep(0.05)
+    return eeprom
+
+
+def _print_pair(eeprom: dict[int, int], label: str, base_k: int, base_b: int) -> None:
+    k = read_u32(eeprom, base_k)
+    b = read_u32(eeprom, base_b)
+    if k is not None:
+        print(f"  {label} k (0x{base_k:02X}): {k} (= {k / 10000.0:.4f})")
+    if b is not None:
+        print(f"  {label} b (0x{base_b:02X}): {b} (= {b / 10000.0:.4f})")
+
+
+def print_interpreted(eeprom: dict[int, int]) -> None:
+    """Decode EEPROM map per PROTOCOL_NOTES.md."""
+    print("\nInterpreted values:")
+
+    cal_points = read_u16(eeprom, 0x80)
+    if cal_points is not None:
+        print(f"  Cal point count (0x80): {cal_points}")
+
+    for i, base in enumerate([0x82, 0x84, 0x86, 0x88, 0x8A, 0x8C]):
+        vol = read_u16(eeprom, base)
+        if vol is not None:
+            print(f"  Cal volume {i + 1} (0x{base:02X}): {vol} (= {vol / 10.0:.1f} µL)")
+
+    for seg, base_k, base_b in [(1, 0x90, 0x94), (2, 0x98, 0x9C)]:
+        _print_pair(eeprom, f"Segment {seg}", base_k, base_b)
+
+    for seg, base_k, base_b in [(1, 0xA0, 0xA4), (2, 0xA8, 0xAC)]:
+        _print_pair(eeprom, f"Factory seg{seg}", base_k, base_b)
+
+
+def print_raw_dump(eeprom: dict[int, int]) -> None:
+    print("\nRaw bytes:")
+    for addr in sorted(eeprom):
+        print(f"  0x{addr:02X}: 0x{eeprom[addr]:02X} ({eeprom[addr]:3d})")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Read dPette EEPROM")
     parser.add_argument("--port", default="/dev/cu.usbserial-0001")
@@ -67,31 +129,16 @@ def main() -> None:
     print(f"Port: {args.port} @ {args.baud}")
     print("=" * 70)
 
-    # Step 1: Handshake
     print("\n[1] Handshake")
-    resp = send_recv(ser, make_handshake(0), "HandShake")
-    if not resp:
+    if not send_recv(ser, make_handshake(0), "HandShake"):
         print("FAILED — is the pipette awake?")
         ser.close()
         return
     time.sleep(0.1)
 
-    # Step 2: Read known EEPROM addresses
     print("\n[2] Reading EEPROM map (0x80–0xAF)")
-    eeprom: dict[int, int] = {}
+    eeprom = read_eeprom_map(ser, range(0x80, 0xB0))
 
-    # EEPROM map from dPette.ini
-    addresses = list(range(0x80, 0xB0))
-
-    for addr in addresses:
-        resp = send_recv(ser, make_read_ee(addr), f"addr=0x{addr:02X}")
-        if resp and len(resp) == 6:
-            # Response format: [0xFD] [CMD] [addr_hi] [addr_lo] [VALUE] [CHECKSUM]
-            value = resp[4]
-            eeprom[addr] = value
-        time.sleep(0.05)
-
-    # Step 3: Interpret the data
     print("\n" + "=" * 70)
     print("[3] EEPROM contents")
     print("-" * 70)
@@ -101,54 +148,8 @@ def main() -> None:
         ser.close()
         return
 
-    # Raw dump
-    print("\nRaw bytes:")
-    for addr in sorted(eeprom):
-        print(f"  0x{addr:02X}: 0x{eeprom[addr]:02X} ({eeprom[addr]:3d})")
-
-    # Interpreted values (from PROTOCOL_NOTES.md)
-    print("\nInterpreted values:")
-
-    def read_u16(base: int) -> int | None:
-        lo = eeprom.get(base)
-        hi = eeprom.get(base + 1)
-        if lo is not None and hi is not None:
-            return (hi << 8) | lo
-        return None
-
-    def read_u32(base: int) -> int | None:
-        b0 = eeprom.get(base)
-        b1 = eeprom.get(base + 1)
-        b2 = eeprom.get(base + 2)
-        b3 = eeprom.get(base + 3)
-        if all(b is not None for b in [b0, b1, b2, b3]):
-            return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0
-        return None
-
-    cal_points = read_u16(0x80)
-    if cal_points is not None:
-        print(f"  Cal point count (0x80): {cal_points}")
-
-    for i, base in enumerate([0x82, 0x84, 0x86, 0x88, 0x8A, 0x8C]):
-        vol = read_u16(base)
-        if vol is not None:
-            print(f"  Cal volume {i + 1} (0x{base:02X}): {vol} (= {vol / 10.0:.1f} µL)")
-
-    for seg, base_k, base_b in [(1, 0x90, 0x94), (2, 0x98, 0x9C)]:
-        k = read_u32(base_k)
-        b = read_u32(base_b)
-        if k is not None:
-            print(f"  Segment {seg} k (0x{base_k:02X}): {k} (= {k / 10000.0:.4f})")
-        if b is not None:
-            print(f"  Segment {seg} b (0x{base_b:02X}): {b} (= {b / 10000.0:.4f})")
-
-    for seg, base_k, base_b in [(1, 0xA0, 0xA4), (2, 0xA8, 0xAC)]:
-        k = read_u32(base_k)
-        b = read_u32(base_b)
-        if k is not None:
-            print(f"  Factory seg{seg} k (0x{base_k:02X}): {k} (= {k / 10000.0:.4f})")
-        if b is not None:
-            print(f"  Factory seg{seg} b (0x{base_b:02X}): {b} (= {b / 10000.0:.4f})")
+    print_raw_dump(eeprom)
+    print_interpreted(eeprom)
 
     ser.close()
     print("\n" + "=" * 70)
