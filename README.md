@@ -30,8 +30,11 @@ this price point.
 | [Opentrons OT-2](https://opentrons.com/products/ot-2-robot) | From $15,950 | Disposable | Python (Protocol API) | [opentrons.com](https://opentrons.com/products/ot-2-robot) |
 | [Tecan Fluent](https://lifesciences.tecan.com/fluent-laboratory-automation-workstation) | Quote only | Disposable | FluentControl (proprietary); PyLabRobot wraps | [tecan.com](https://lifesciences.tecan.com/fluent-laboratory-automation-workstation) |
 | [Hamilton Microlab STAR](https://www.hamiltoncompany.com/microlab-star) | Quote only | Disposable (CO-RE II) | VENUS / PyHamilton | [hamiltoncompany.com](https://www.hamiltoncompany.com/microlab-star) |
+| [Heidolph Hei-FLOW](https://heidolph.com/america/en/peristaltic-pumps) | Quote only | Continuous flow (tubing, not pipette-class) | Proprietary (analog/RS-232 depending on model) | [heidolph.com](https://heidolph.com/america/en/peristaltic-pumps) |
 
-*Prices verified 2026-05-26 against vendor/project pages linked above.*
+*Prices verified 2026-05-26 against vendor/project pages linked above.
+Hei-FLOW is listed for reference — peristaltic pumps move continuous flow,
+not discrete pipette volumes, so they solve a different problem.*
 
 ## What works
 
