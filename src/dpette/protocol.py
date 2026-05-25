@@ -103,7 +103,17 @@ def encode_packet(cmd: int, b2: int = 0, b3: int = 0, b4: int = 0) -> bytes:
 
     >>> encode_packet(Command.HELLO).hex(' ')
     'fe a0 00 00 00 a0'
+
+    Raises
+    ------
+    ValueError
+        If any of ``cmd``, ``b2``, ``b3``, ``b4`` is outside ``0..0xFF``.
+        Silent truncation to 8 bits would produce an unintended command
+        byte and run the wrong motor operation.
     """
+    for name, value in (("cmd", cmd), ("b2", b2), ("b3", b3), ("b4", b4)):
+        if not 0 <= value <= 0xFF:
+            raise ValueError(f"{name}=0x{value:X} out of range (0..0xFF)")
     cksum = compute_checksum(cmd, b2, b3, b4)
     return bytes([HEADER_TX, cmd, b2, b3, b4, cksum])
 

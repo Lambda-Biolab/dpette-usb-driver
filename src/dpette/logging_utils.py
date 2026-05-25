@@ -48,10 +48,22 @@ def get_logger(
     logger.addHandler(console)
 
     if log_to_file:
-        LOG_DIR.mkdir(parents=True, exist_ok=True)
-        fh = logging.FileHandler(LOG_DIR / "session.log")
-        fh.setFormatter(fmt)
-        logger.addHandler(fh)
+        log_path = LOG_DIR / "session.log"
+        try:
+            LOG_DIR.mkdir(parents=True, exist_ok=True)
+            fh = logging.FileHandler(log_path)
+        except OSError as exc:
+            # Losing the session log file doesn't affect pipetting; fall
+            # back to console-only with a visible warning rather than
+            # aborting the run.
+            logger.warning(
+                "Could not open log file at %s (%s); using console only",
+                log_path,
+                exc,
+            )
+        else:
+            fh.setFormatter(fmt)
+            logger.addHandler(fh)
 
     _CONFIGURED.add(name)
     return logger

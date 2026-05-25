@@ -73,6 +73,20 @@ class TestEncodePacket:
         pkt = encode_packet(0xA6, b2=0x27, b3=0x10)
         assert pkt == CALI_VOL_1000_TX
 
+    @pytest.mark.parametrize(
+        ("kwargs", "bad_field"),
+        [
+            ({"cmd": 0x100}, "cmd"),
+            ({"cmd": -1}, "cmd"),
+            ({"cmd": 0xA0, "b2": 0x100}, "b2"),
+            ({"cmd": 0xA0, "b3": 0x100}, "b3"),
+            ({"cmd": 0xA0, "b4": 0x100}, "b4"),
+        ],
+    )
+    def test_byte_overflow_raises(self, kwargs: dict[str, int], bad_field: str) -> None:
+        with pytest.raises(ValueError, match=bad_field):
+            encode_packet(**kwargs)
+
 
 class TestDecodePacket:
     def test_hello_response(self) -> None:

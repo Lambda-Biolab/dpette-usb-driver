@@ -172,8 +172,12 @@ class DPetteDriver:
         # Read completion (may take seconds while motor moves)
         done = self._link.read(PACKET_LEN)
         if len(done) < PACKET_LEN:
-            log.warning("KEY command: got ACK but no completion (motor timeout?)")
-            return decode_packet(ack)
+            # Returning the ACK as if the motion completed would mask an
+            # unknown motor state; the caller must know the stroke didn't
+            # confirm so they don't dispense into the wrong well.
+            raise TimeoutError(
+                "KEY completion packet not received -- motor state unknown"
+            )
         return decode_packet(done)
 
     # -- mode management ------------------------------------------------------
