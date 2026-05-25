@@ -299,9 +299,14 @@ FUN_14001af80 (buffered frame parser):
 
 Response timeout: 1000ms per read (`_timerRead->start(1000)`).
 
-## Remote pipetting flow (CONFIRMED — live hardware, 2026-04-06)
+## Remote pipetting flow — initial findings (2026-04-06)
 
-### Pipetting sequence (CONFIRMED — hands-off, no Err4)
+> **Superseded by EXP-050 below.** The flow in this section uses the
+> physical dial for volume because remote volume control had not yet
+> been discovered. Keep for the trace data; for the current correct
+> protocol see "Remote volume control — CONFIRMED (EXP-050)".
+
+### Pipetting sequence (hands-off, no Err4)
 
 Tested on clean dPette 10-100 µL.  Set volume on the physical dial,
 then control aspirate/dispense remotely.
@@ -398,25 +403,18 @@ reclassified as dead ends in EXPERIMENT_LOG.md.
 
 ## Open questions
 
-1. **WriteEE byte layout** — exact mapping of address and value bytes in
-   the 0xA4 packet needs write-then-read confirmation
-2. **0xA3 data flow** — how exactly does the device deliver EEPROM data?
-   May require a specific command sequence (handshake → start → read)
-3. **Err4 prevention** — is there a clean way to enter/exit cal mode
+1. **Err4 prevention** — is there a clean way to enter/exit cal mode
    without triggering Err4?  PetteCali manages this somehow.
-4. **Volume readback** — no command was found to read the current volume
-   setting from the device
-5. **Persistent Err4** — no known way to clear the startup error; persists
+2. **Volume readback** — no command was found to read the current volume
+   setting from the device.
+3. **Persistent Err4** — no known way to clear the startup error; persists
    through PetteCali WriteData, ResetFactory, and the physical factory
-   reset button
+   reset button.
 
 ## Next steps
 
-1. **VM serial capture** — run PetteCali in a Windows VM with serial port
-   logging to capture the exact enter/exit cal mode sequence (may reveal
-   commands that prevent Err4)
-2. **Proper recalibration** — use PetteCali with real weight measurements
+1. **Proper recalibration** — use PetteCali with real weight measurements
    to write correct k/b values (the dummy calibration wrote k=1.2313,
-   b=0.0000 which may affect accuracy)
-3. **Err4 root cause** — deeper analysis of what flag is set and how to
-   clear it without PetteCali
+   b=0.0000 which may affect accuracy).
+2. **Err4 root cause** — deeper analysis of what flag is set and how to
+   clear it without PetteCali.

@@ -26,14 +26,7 @@ causing missed steps, position drift, or overheating.
 contiguous-cycle counter (`MAX_CONTIGUOUS_CYCLES = 50`) forces a pause
 so the operator can inspect the device.
 
-### 3. Uncontrolled tip ejection
-
-Ejecting a tip while liquid is present could spray hazardous material.
-
-**Mitigation:** (future) sequence checks — warn or block `eject_tip()`
-if the last operation was `aspirate()` without a corresponding `dispense()`.
-
-### 4. Unknown command side-effects
+### 3. Unknown command side-effects
 
 Sending arbitrary bytes to the pipette could trigger undocumented
 factory or debug modes.
@@ -43,7 +36,7 @@ factory or debug modes.
 hand-crafted bytes are reserved for `tools/` scripts used during
 reverse-engineering.
 
-### 5. Calibration mode entry causes persistent Err4
+### 4. Calibration mode entry causes persistent Err4
 
 Sending `A5 b2=1` (enter calibration mode) sets a persistent flag
 that causes Err4 on every subsequent reboot.  This was confirmed on
@@ -56,7 +49,7 @@ method uses only `A5 b2=0` (handshake) and `B0 b2=1` (prime).
 The `Command.HANDSHAKE` with `b2=1` is intentionally not exposed
 as a high-level method.
 
-### 6. EEPROM writes can break motor control
+### 5. EEPROM writes can break motor control
 
 Writing incorrect calibration values (k/b coefficients) to EEPROM
 via `A4` can cause the motor to refuse aspirate/dispense commands.
