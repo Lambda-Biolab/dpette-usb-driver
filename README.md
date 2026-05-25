@@ -1,15 +1,10 @@
----
-title: "dpette-usb-driver"
-status: "ACTIVE"
-updated: "2026-04-09"
-owner: "lambda biolab"
----
-
 # dpette-usb-driver
 
+[![License](https://img.shields.io/badge/license-MIT-58f4c2.svg)](LICENSE)
+![Version](https://img.shields.io/badge/version-0.2.0-58f4c2.svg)
 [![CodeFactor](https://www.codefactor.io/repository/github/lambda-biolab/dpette-usb-driver/badge)](https://www.codefactor.io/repository/github/lambda-biolab/dpette-usb-driver)
 [![CodeQL](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/codeql.yml/badge.svg)](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/codeql.yml)
-[![Dependabot](https://img.shields.io/badge/dependabot-enabled-blue?logo=dependabot)](https://github.com/Lambda-Biolab/dpette-usb-driver/network/updates)
+[![Dependabot Updates](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/dependabot/dependabot-updates)
 
 Open-source Python driver for **DLAB dPette** and **dPette+** electronic
 pipettes. Full serial volume control, speed control, and three operating
