@@ -22,13 +22,15 @@ at 9600 baud 8N1.
 There is **no open-source, disposable-tip, API-controlled pipette** at
 this price point.
 
-| Solution | Cost | Tips | API control |
-|----------|------|------|-------------|
-| **dPette + this driver** | **~$130** | **Disposable** | **Full serial** |
-| ac-rad Digital Pipette v2 | ~$200 | Syringe (no tips) | Arduino |
-| Science Jubilee + OT-2 pipette | ~$900+ | Disposable | Python |
-| Opentrons OT-2 | ~$10,000+ | Disposable | Python |
-| Hamilton STAR | ~$100,000+ | Disposable | VENUS/Python |
+| System | Price tier | Tips | Control | 1P source |
+|---|---|---|---|---|
+| **dPette + this driver** | **~$80–130 (Aliexpress / DLAB direct)** | **Disposable** | **Full serial** | this repo |
+| [ac-rad Digital Pipette](https://github.com/ac-rad/digital-pipette) | DIY (BOM not published) | Syringe (no tips) | Arduino + Python host | [github.com/ac-rad/digital-pipette](https://github.com/ac-rad/digital-pipette) |
+| [Science Jubilee + OT-2 pipette](https://science-jubilee.readthedocs.io/en/latest/building/pipette_tool.html) | DIY (system cost not published) | Disposable | Python (`science_jubilee`) | [science-jubilee.readthedocs.io](https://science-jubilee.readthedocs.io/en/latest/building/pipette_tool.html) |
+| [Opentrons OT-2](https://opentrons.com/products/ot-2-robot) | From $15,950 | Disposable | Python (Protocol API) | [opentrons.com](https://opentrons.com/products/ot-2-robot) |
+| [Hamilton Microlab STAR](https://www.hamiltoncompany.com/microlab-star) | Quote only | Disposable (CO-RE II) | VENUS / PyHamilton | [hamiltoncompany.com](https://www.hamiltoncompany.com/microlab-star) |
+
+*Prices verified 2026-05-26 against vendor/project pages linked above.*
 
 ## What works
 
@@ -137,22 +139,10 @@ All communication uses 6-byte packets:
 
 Checksum = `sum(bytes[1:5]) & 0xFF`.
 
-| CMD | Name | Function |
-|-----|------|----------|
-| A0 | HELLO | Handshake |
-| A3 | EE_READ | Read EEPROM byte |
-| A4 | EE_WRITE | Write EEPROM byte |
-| A5 | DEMARCATE | Enter/exit calibration mode (**causes Err4**) |
-| A7 | RESET | Factory reset (calibration only, not Err4) |
-| B0 | WOL | Enter mode: PI=1, ST=2, DI=3 (homes motor) |
-| B1 | SPEED | Set speed: direction (1=suck, 2=blow), level (1-3) |
-| B2 | PI_VOLUM | Set volume: µL × 100, 24-bit big-endian |
-| B3 | KEY | Aspirate (b2=1) or dispense (b2=2), double response |
-| B4 | ST_VOLUM | Split volume per aliquot (× 100, 24-bit) |
-| B5 | ST_NUM | Number of splits |
-| B6/B7 | DI1/DI2_VOLUM | Dilution volumes 1 and 2 (× 100, 24-bit) |
-
-See [docs/PROTOCOL_NOTES.md](docs/PROTOCOL_NOTES.md) for the full specification.
+Commands cover handshake (`A0`), EEPROM read/write (`A3`/`A4`), mode and
+volume control (`B0`/`B2`), and aspirate/dispense (`B3`). See
+[docs/PROTOCOL_NOTES.md](docs/PROTOCOL_NOTES.md) for the full command
+reference.
 
 ## Known issues
 
@@ -181,6 +171,18 @@ See [docs/PROTOCOL_NOTES.md](docs/PROTOCOL_NOTES.md) for the full specification.
 - [Experiment Log](docs/EXPERIMENT_LOG.md) — 55 experiments with results
 - [Hardware Notes](docs/HARDWARE.md) — CP2102, device connection
 - [Safety Model](docs/SAFETY_MODEL.md) — risks and software guardrails
+
+## Related work
+
+- [PyLabRobot](https://github.com/PyLabRobot/pylabrobot) — hardware-agnostic
+  Python SDK for floor-standing liquid handlers (Hamilton STAR/Vantage,
+  Tecan EVO, Opentrons OT-2). Different tier; same Python-first goal.
+- [xg590/Learn_dPettePlus](https://github.com/xg590/Learn_dPettePlus) —
+  earlier independent reverse-engineering of the same dPette+ protocol;
+  source of the official `Communication_Protocol_CN.doc`.
+- [qte77/i3mega-pipettebot](https://github.com/qte77/i3mega-pipettebot) —
+  downstream: drives a converted consumer 3D printer using this driver
+  as a low-cost dispensing robot.
 
 ## Acknowledgments
 
