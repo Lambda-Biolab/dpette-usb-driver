@@ -101,7 +101,7 @@ three policies:
 | Serial port open | `serial_link.SerialLink.open` | fail-loud | `SerialException` propagates — no port means no link; silent continuation would deceive the caller. |
 | Serial write / flush | `serial_link.SerialLink.write` | fail-loud | Unacknowledged writes mean a command was never sent; swallowing skips a pipetting step. |
 | Serial read (short) | `serial_link.SerialLink.read` | fail-loud | Returns the short bytes; caller (`_transact`) checks length and raises `TimeoutError`. |
-| KEY completion read timeout | `driver._key_command` | **fail-loud (change needed)** | Currently logs a warning and returns the ACK packet as if the motion completed; that masks an unknown motor state. PR δ. |
+| KEY completion read timeout | `driver._key_command` | fail-loud | Raises `TimeoutError` if the post-ACK completion packet doesn't arrive — caller must know the motor state is unknown. |
 | Volume / speed validation | `safety.validate_volume`, `safety.validate_speed` | fail-loud | Raises `SafetyError` on out-of-range input. Silent clamping would deliver the wrong volume. |
 | Packet encode — byte overflow | `protocol.encode_packet` | **fail-loud (change needed)** | Currently truncates byte values >255 silently; an oversized integer becomes an unintended command byte. PR δ. |
 | Packet decode — wrong length / header | `protocol.decode_packet` | fail-loud | Raises `ValueError`; malformed frames indicate noise or protocol mismatch. |

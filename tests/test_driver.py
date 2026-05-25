@@ -250,6 +250,16 @@ class TestAspirate:
         assert pkt.cmd == Command.KEY
         assert pkt.b2 == 0x01
 
+    def test_aspirate_raises_on_missing_completion(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        # ACK arrives, but the motor-completion packet times out.
+        # Driver must fail-loud so callers don't dispense into the
+        # wrong well believing the motion completed.
+        mock_serial.read.side_effect = [KEY_SUCK_ACK, b""]
+        with pytest.raises(TimeoutError, match="KEY completion"):
+            connected_driver.aspirate()
+
     def test_aspirate_increments_cycle_count(
         self, connected_driver: DPetteDriver, mock_serial: MagicMock
     ) -> None:
