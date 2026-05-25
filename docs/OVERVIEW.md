@@ -34,7 +34,7 @@ owner: "lambda biolab"
      ┌───────────────┐
      │ CP210x bridge │  Silicon Labs USB-UART
      └───────┬───────┘
-             │ UART (TX/RX, baud TBD)
+             │ UART (TX/RX, 9600 8N1)
              ▼
      ┌───────────────┐
      │ Pipette MCU   │  microcontroller (unknown model)
@@ -46,48 +46,32 @@ owner: "lambda biolab"
      └───────────────┘
 ```
 
-## Project phases
+## How this was built
 
-### Phase 1 — Static analysis (no hardware needed)
+The protocol was decoded in four overlapping passes:
 
-- Download PetteCali.exe from DLAB (QR code link).
-- Decompile with dnSpyEx or ILSpy (runs on Windows, Wine, or natively).
-- Extract: serial port init (baud rate, framing), command strings,
-  packet format, checksum algorithm.
-- Document findings in `docs/PROTOCOL_NOTES.md`.
-
-### Phase 2 — Discovery
-
-- Connect dPette via USB; confirm it appears as `/dev/tty.SLAB_USBtoUART`.
-- Identify VID/PID with `system_profiler` or `cp210x-program`.
-- Confirm baud rate from Phase 1 using `tools/scan_baud.py`.
-
-### Phase 3 — Passive capture
-
-- Listen on the serial port while manually operating the pipette
-  (button presses for aspirate/dispense) — the MCU may emit status
-  bytes or ACKs without the calibration software running.
-- Use `tools/dump_raw.py` or SerialTool for logging.
-- Optionally: run PetteCali in a Windows VM with USBPcap for full
-  bidirectional capture.
-- Store captures in `captures/`.
-
-### Phase 4 — Driver implementation
-
-- Implement `protocol.py` encode/decode based on Phase 1 + 3 findings.
-- Implement `driver.py` command methods.
-- Expand test suite with real packet fixtures.
-- Validate against live hardware using `tools/replay_trace.py`.
+1. **Static analysis** — Ghidra decompilation of `PetteCali.exe` (the
+   official DLAB Windows calibration app — native C++/Qt6, MinGW x86-64).
+   Extracted serial init, packet format, and checksum algorithm.
+2. **Discovery** — confirmed the dPette enumerates as a Silicon Labs
+   CP2102 USB-UART bridge (VID `0x10C4`, PID `0xEA60`), appearing as
+   `/dev/cu.usbserial-0001` on macOS or `/dev/ttyUSB0` on Linux. Baud
+   rate confirmed against Phase 1 findings.
+3. **Live probing** — 55 hardware experiments documented in
+   `EXPERIMENT_LOG.md`. Bidirectional capture via PetteCali in a Windows
+   VM filled the remaining gaps.
+4. **Driver implementation** — `protocol.py` encode/decode, `driver.py`
+   command surface, test suite against mocked serial fixtures, then
+   validation on live hardware.
 
 ## Reference projects
 
 | Project | Relevance |
 |---------|-----------|
-| [ac-rad/digital-pipette-v2](https://github.com/ac-rad/digital-pipette-v2) | DIY pipette with Python serial driver |
+| [ac-rad/digital-pipette](https://github.com/ac-rad/digital-pipette) | DIY pipette with Python serial driver |
 | [SerialTool](https://github.com/Duolabs/SerialTool) | Cross-platform serial sniffer (macOS/Linux) |
 | [cp210x-program](https://github.com/VCTLabs/cp210x-program) | CP210x EEPROM reader (VID/PID) |
-| [dnSpyEx](https://github.com/dnSpyEx/dnSpy) | .NET decompiler/debugger |
-| [ILSpy](https://github.com/icsharpcode/ILSpy) | .NET decompiler (multi-platform) |
+| [Ghidra](https://ghidra-sre.org/) | Native-binary decompiler used on PetteCali.exe |
 
 ## Dependency rules
 
