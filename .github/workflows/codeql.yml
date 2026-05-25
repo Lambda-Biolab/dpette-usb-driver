@@ -22,5 +22,10 @@ jobs:
       - uses: github/codeql-action/init@dc73d59c2d7bd4f8194098a91219eeee6d8a1719  # v4
         with:
           languages: python
-      - uses: github/codeql-action/autobuild@dc73d59c2d7bd4f8194098a91219eeee6d8a1719  # v4
+          build-mode: none
+          queries: security-extended
+          config: |
+            paths-ignore:
+              - tools/archive/**
+              - docs/**
       - uses: github/codeql-action/analyze@dc73d59c2d7bd4f8194098a91219eeee6d8a1719  # v4
