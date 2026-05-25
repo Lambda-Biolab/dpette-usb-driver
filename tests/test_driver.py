@@ -35,12 +35,12 @@ DEMARCATE_RX = bytes.fromhex("fd a5 00 00 00 a5")
 CALI_VOL_RX = bytes.fromhex("fd a6 00 00 00 a6")
 
 
-@pytest.fixture()
+@pytest.fixture
 def cfg() -> SerialConfig:
     return SerialConfig(port="/dev/ttyUSB0", baudrate=9600)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_serial() -> Generator[MagicMock, None, None]:
     """Yield a mock serial.Serial that returns HELLO + WOL ACKs for connect."""
     with patch("dpette.serial_link.serial.Serial") as cls:
@@ -52,7 +52,7 @@ def mock_serial() -> Generator[MagicMock, None, None]:
         yield port
 
 
-@pytest.fixture()
+@pytest.fixture
 def connected_driver(cfg: SerialConfig, mock_serial: MagicMock) -> DPetteDriver:
     """A driver that has already connected via mock (A0 + B0 consumed)."""
     drv = DPetteDriver(cfg)

@@ -46,7 +46,15 @@ target-version = "py311"
 src = ["src"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "B", "A", "SIM", "TCH", "C90"]
+select = [
+    "E", "F", "W", "I", "N", "UP",      # baseline
+    "B", "A", "S", "SIM", "RUF", "PT",  # quality
+    "TC", "PGH", "C90",                 # strictness
+    "TRY",                              # try/except discipline
+]
+ignore = [
+    "TRY003",  # long error messages outside exception classes — noisy on one-off defensive raises
+]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
@@ -55,6 +63,7 @@ max-complexity = 10
 "tools/*" = ["E501", "B007", "SIM115"]
 "tools/archive/*" = ["E501", "B007", "SIM115", "C901"]
 "examples/*" = ["E501"]
+"tests/*" = ["S101", "D"]  # tests use bare assert; docstrings not required
 
 [tool.mypy]
 python_version = "3.11"

@@ -10,7 +10,7 @@ from dpette.config import SerialConfig
 from dpette.serial_link import SerialLink
 
 
-@pytest.fixture()
+@pytest.fixture
 def cfg() -> SerialConfig:
     return SerialConfig(port="/dev/ttyUSB0", baudrate=9600)
 
