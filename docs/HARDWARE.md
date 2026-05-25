@@ -62,6 +62,21 @@ Connection procedure:
 See `captures/static-analysis/page-11.png` and `page-12.png` for photos
 of standby vs connectable states.
 
+## Physical UX
+
+### Enter the settings menu without serial
+
+> **Reported, not yet verified on our devices.** Tracked in
+> [#39](https://github.com/Lambda-Biolab/dpette-usb-driver/issues/39).
+
+Per a note in
+[xg590/Learn_dPettePlus](https://github.com/xg590/Learn_dPettePlus/blob/main/dPette%2B.ipynb),
+turning the black crown **clockwise then counterclockwise** is reported
+to enter the device's settings menu. This is potentially safer than the
+serial `A5 b2=1` route (which causes persistent Err4 — see
+[`SAFETY_MODEL.md`](SAFETY_MODEL.md)). Worth confirming on real hardware
+before relying on it for automation.
+
 ## Vendor calibration software
 
 - **Name:** PetteCali (downloadable via QR code from DLAB)
