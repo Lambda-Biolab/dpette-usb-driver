@@ -22,19 +22,26 @@ at 9600 baud 8N1.
 There is **no open-source, disposable-tip, API-controlled pipette** at
 this price point.
 
-| System | Price tier | Tips | Control | 1P source |
-|---|---|---|---|---|
-| **dPette + this driver** | **~$80–130 (Aliexpress / DLAB direct)** | **Disposable** | **Full serial** | this repo |
-| [ac-rad Digital Pipette](https://github.com/ac-rad/digital-pipette) | DIY (BOM not published) | Syringe (no tips) | Arduino + Python host | [github.com/ac-rad/digital-pipette](https://github.com/ac-rad/digital-pipette) |
-| [Science Jubilee + OT-2 pipette](https://science-jubilee.readthedocs.io/en/latest/building/pipette_tool.html) | DIY (system cost not published) | Disposable | Python (`science_jubilee`) | [science-jubilee.readthedocs.io](https://science-jubilee.readthedocs.io/en/latest/building/pipette_tool.html) |
-| [Opentrons OT-2](https://opentrons.com/products/ot-2-robot) | From $15,950 | Disposable | Python (Protocol API) | [opentrons.com](https://opentrons.com/products/ot-2-robot) |
-| [Tecan Fluent](https://lifesciences.tecan.com/fluent-laboratory-automation-workstation) | Quote only | Disposable | FluentControl (proprietary); PyLabRobot wraps | [tecan.com](https://lifesciences.tecan.com/fluent-laboratory-automation-workstation) |
-| [Hamilton Microlab STAR](https://www.hamiltoncompany.com/microlab-star) | Quote only | Disposable (CO-RE II) | VENUS / PyHamilton | [hamiltoncompany.com](https://www.hamiltoncompany.com/microlab-star) |
-| [Heidolph Hei-FLOW](https://heidolph.com/america/en/peristaltic-pumps~c167) | Quote only | Continuous flow (tubing, not pipette-class) | Proprietary (analog/RS-232 depending on model) | [heidolph.com](https://heidolph.com/america/en/peristaltic-pumps~c167) |
+| System | Price tier | Tips | Control |
+|---|---|---|---|
+| **dPette + this driver** | **~$80–130 (Aliexpress / DLAB direct)** | **Disposable** | **Full serial** |
+| [ac-rad Digital Pipette][ac-rad] | DIY (BOM not published) | Syringe (no tips) | Arduino + Python host |
+| [Science Jubilee + OT-2 pipette][jubilee] | DIY (system cost not published) | Disposable | Python (`science_jubilee`) |
+| [Opentrons OT-2][ot2] | From $15,950 | Disposable | Python (Protocol API) |
+| [Tecan Fluent][tecan] | Quote only | Disposable | FluentControl (proprietary); PyLabRobot wraps |
+| [Hamilton Microlab STAR][hamilton] | Quote only | Disposable (CO-RE II) | VENUS / PyHamilton |
+| [Heidolph Hei-FLOW][heidolph] | Quote only | Continuous flow (tubing, not pipette-class) | Proprietary (analog/RS-232 depending on model) |
 
 *Prices verified 2026-05-26 against vendor/project pages linked above.
 Hei-FLOW is listed for reference — peristaltic pumps move continuous flow,
 not discrete pipette volumes, so they solve a different problem.*
+
+[ac-rad]: https://github.com/ac-rad/digital-pipette
+[jubilee]: https://science-jubilee.readthedocs.io/en/latest/building/pipette_tool.html
+[ot2]: https://opentrons.com/products/ot-2-robot
+[tecan]: https://lifesciences.tecan.com/fluent-laboratory-automation-workstation
+[hamilton]: https://www.hamiltoncompany.com/microlab-star
+[heidolph]: https://heidolph.com/america/en/peristaltic-pumps~c167
 
 ## What works
 
