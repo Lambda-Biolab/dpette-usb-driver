@@ -83,8 +83,10 @@ via serial.  See `docs/SAFETY_MODEL.md` and GitHub issue #2.
 
 ## Hardware modification
 
-Full volume control requires a BSS138 MOSFET wired across the pipette's
-button contacts.  See GitHub issue #3 for the wiring guide and BOM.
+Not required.  Full volume control runs over serial via the `B2` (PI_VOLUM)
+command (confirmed in EXP-050).  An optional BSS138 MOSFET mod for
+button-press automation is documented in `docs/HARDWARE_MOD.md` for users
+who want fully untouched-by-hand operation.
 
 ## Pull requests
 

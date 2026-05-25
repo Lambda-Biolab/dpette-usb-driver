@@ -1,18 +1,24 @@
 # dPette Button MOSFET Mod — Hardware Guide
 
-This document covers the hardware modification required for fully automated,
-volume-controlled pipetting. The mod wires a BSS138 MOSFET across the pipette's
-physical button contacts, allowing any microcontroller GPIO pin to simulate a
-button press electronically.
+This document covers an **optional** hardware modification for fully hands-off
+operation. The mod wires a BSS138 MOSFET across the pipette's physical button
+contacts, allowing any microcontroller GPIO pin to simulate a button press
+electronically.
 
-## Why this is needed
+## When you need this
 
-The dPette's volume control (A6 command) only takes effect when the physical
-button is pressed — there is no serial command that triggers aspiration at the
-A6-set volume. After 48 experiments exhausting the full serial protocol surface,
-a hardware button actuator is the confirmed path to full automation.
+For most callers, the mod is unnecessary — `B2` (PI_VOLUM) sets motor travel
+remotely and `B3` triggers aspirate/dispense over serial (confirmed in EXP-050).
+The MOSFET mod is only useful if you also want to enter calibration mode
+hands-off (which is the one workflow that still requires a physical button
+press, since the serial `A5 b2=1` equivalent causes persistent Err4).
 
-See [`EXPERIMENT_LOG.md`](EXPERIMENT_LOG.md) for the complete investigation.
+The mod was originally developed before EXP-050 proved B2 worked, when a
+hardware button actuator looked like the only path to automation. It is kept
+here as an option for fully untouched-by-hand operation in lab automation
+setups.
+
+See [`EXPERIMENT_LOG.md`](EXPERIMENT_LOG.md) for the full investigation.
 
 ---
 
