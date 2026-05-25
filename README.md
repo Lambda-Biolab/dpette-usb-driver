@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD033 -->
 # dpette-usb-driver
 
 [![License](https://img.shields.io/badge/license-MIT-58f4c2.svg)](LICENSE)
@@ -13,9 +14,14 @@ modes (pipetting, splitting, dilution) — no hardware modifications needed.
 Uses the Silicon Labs **CP2102** USB-UART bridge (VID `0x10C4`, PID `0xEA60`)
 at 9600 baud 8N1.
 
+<details>
+<summary>dPette 8-channel with USB-UART bridge attached</summary>
+
 ![dPette 8-channel with USB-UART bridge attached](docs/dpette-multichannel.png)
 
 *Verified on the 8-channel dPette — same CP2102 bridge, same 6-byte protocol.*
+
+</details>
 
 ## Why this matters
 
