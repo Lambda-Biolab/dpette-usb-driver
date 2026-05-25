@@ -28,6 +28,7 @@ this price point.
 | [ac-rad Digital Pipette](https://github.com/ac-rad/digital-pipette) | DIY (BOM not published) | Syringe (no tips) | Arduino + Python host | [github.com/ac-rad/digital-pipette](https://github.com/ac-rad/digital-pipette) |
 | [Science Jubilee + OT-2 pipette](https://science-jubilee.readthedocs.io/en/latest/building/pipette_tool.html) | DIY (system cost not published) | Disposable | Python (`science_jubilee`) | [science-jubilee.readthedocs.io](https://science-jubilee.readthedocs.io/en/latest/building/pipette_tool.html) |
 | [Opentrons OT-2](https://opentrons.com/products/ot-2-robot) | From $15,950 | Disposable | Python (Protocol API) | [opentrons.com](https://opentrons.com/products/ot-2-robot) |
+| [Tecan Fluent](https://lifesciences.tecan.com/fluent-laboratory-automation-workstation) | Quote only | Disposable | FluentControl (proprietary); PyLabRobot wraps | [tecan.com](https://lifesciences.tecan.com/fluent-laboratory-automation-workstation) |
 | [Hamilton Microlab STAR](https://www.hamiltoncompany.com/microlab-star) | Quote only | Disposable (CO-RE II) | VENUS / PyHamilton | [hamiltoncompany.com](https://www.hamiltoncompany.com/microlab-star) |
 
 *Prices verified 2026-05-26 against vendor/project pages linked above.*
