@@ -107,7 +107,7 @@ class DPetteDriver:
             self._link.open()
             resp = self._transact(hello_packet(), timeout=HANDSHAKE_TIMEOUT_S)
             if resp.cmd != Command.HELLO:
-                raise RuntimeError(
+                raise RuntimeError(  # noqa: TRY301
                     f"Unexpected handshake response cmd 0x{resp.cmd:02X}"
                 )
             log.info("Handshake OK (A0)")
@@ -115,7 +115,7 @@ class DPetteDriver:
             self._cycle_count = 0
             # Enter PI mode now so the motor homes before a tip touches liquid
             self.enter_mode(WorkingMode.PI)
-        except Exception as exc:
+        except (OSError, TimeoutError, RuntimeError) as exc:
             log.warning("dPette connection failed (%s) -- entering stub mode", exc)
             self._stub_mode = True
             self._connected = True

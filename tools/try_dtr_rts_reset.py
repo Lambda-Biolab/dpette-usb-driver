@@ -15,7 +15,7 @@ import time
 import serial
 
 LOGFILE = "/Users/antoniolamb/repos/dpette-usb-driver/captures/live_log.txt"
-_log = open(LOGFILE, "w")  # noqa: SIM115
+_log = open(LOGFILE, "w")
 PORT = "/dev/cu.usbserial-0001"
 
 

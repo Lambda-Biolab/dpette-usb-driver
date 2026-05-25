@@ -46,15 +46,34 @@ target-version = "py311"
 src = ["src"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "B", "A", "SIM", "TCH", "C90"]
+select = [
+    "E", "F", "W", "I", "N", "UP",      # baseline
+    "B", "A", "S", "SIM", "RUF", "PT",  # quality
+    "TC", "PGH", "C90",                 # strictness
+    "TRY",                              # try/except discipline
+]
+ignore = [
+    "TRY003",  # long error messages outside exception classes — noisy on one-off defensive raises
+]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
 [tool.ruff.lint.per-file-ignores]
-"tools/*" = ["E501", "B007", "SIM115"]
-"tools/archive/*" = ["E501", "B007", "SIM115", "C901"]
+# tools/ and tools/archive/ contain hardware-probe scripts with scientific
+# notation (µL, en-dashes, etc.) and one-off code; relax style there.
+"tools/*" = ["E501", "B007", "SIM115", "RUF001", "RUF002", "RUF003"]
+"tools/archive/*" = [
+    "E501", "B007", "SIM115", "C901",
+    "RUF001", "RUF002", "RUF003",  # en-dashes and µ are intentional in these notes
+    "S110", "S311", "S404", "S603", "S607",  # archive scripts: subprocess + bare excepts + non-crypto random are fine
+    "TRY300", "TRY301",  # one-off try/except patterns
+    "PGH003",  # bare type: ignore in throwaway code
+    "PT",  # not pytest files
+    "TC",  # type-check-only import discipline not enforced for scripts
+]
 "examples/*" = ["E501"]
+"tests/*" = ["S101", "D"]  # tests use bare assert; docstrings not required
 
 [tool.mypy]
 python_version = "3.11"

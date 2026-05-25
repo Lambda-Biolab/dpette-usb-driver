@@ -338,10 +338,14 @@ handshake_packet = demarcate_packet
 (DEMARCATE), not A0 (HELLO).  Use :func:`hello_packet` for the real
 handshake and :func:`demarcate_packet` for calibration mode."""
 
-aspirate_packet = lambda: key_packet(KeyAction.SUCK)  # noqa: E731
-"""Deprecated alias — use ``key_packet(KeyAction.SUCK)``."""
 
-dispense_packet = lambda: wol_packet(WorkingMode.PI)  # noqa: E731
-"""Deprecated alias — the old ``dispense_packet()`` actually sent B0
-(enter PI mode), not B3 blow.  Use ``key_packet(KeyAction.BLOW)`` for
-actual dispense."""
+def aspirate_packet() -> bytes:
+    """Deprecated alias — use ``key_packet(KeyAction.SUCK)``."""
+    return key_packet(KeyAction.SUCK)
+
+
+def dispense_packet() -> bytes:
+    """Deprecated alias — the old ``dispense_packet()`` actually sent B0
+    (enter PI mode), not B3 blow.  Use ``key_packet(KeyAction.BLOW)`` for
+    actual dispense."""
+    return wol_packet(WorkingMode.PI)
