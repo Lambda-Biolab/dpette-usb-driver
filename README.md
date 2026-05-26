@@ -204,11 +204,16 @@ reference.
 
 ## Acknowledgments
 
-The official DLAB serial protocol document (`Communication_Protocol_CN.doc`)
-was found in [xg590/Learn_dPettePlus](https://github.com/xg590/Learn_dPettePlus)
-by Xiaokang Guo (NYU). This document was the key to discovering the remote
-control protocol (A0/B0/B2/B3) that enabled serial volume control — the
-single biggest breakthrough in this project.
+[Xiaokang Guo (NYU)](https://github.com/xg590) had already reverse-engineered
+the dPette+ in [xg590/Learn_dPettePlus](https://github.com/xg590/Learn_dPettePlus)
+and republished the DLAB `Communication_Protocol_CN.doc` there. We came across
+the spec while cross-checking our own findings; it confirms several of our
+results — most usefully the A1 INFO response layout (channel count, volume
+range) and the B3 KEY completion-code semantics.
+
+The remote-control protocol itself (A0/B0/B2/B3) was discovered earlier in
+this project by Ghidra-decompiling `PetteCali.exe` and confirmed in live
+experiments EXP-049 and EXP-050.
 
 ## License
 
