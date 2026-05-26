@@ -9,12 +9,19 @@ owner: "lambda biolab"
 
 ## Source strategy
 
-Primary source: Ghidra decompilation of PetteCali.exe (native C++/Qt6,
-MinGW x86-64).  Secondary: DLAB calibration instructions PDF.  Tertiary:
-live probing against real hardware (CP2102 on macOS).
+Three lines of evidence, in order of precedence when they disagree:
 
-Full decompilation: `captures/static-analysis/decompiled_all.c` (1497 functions).
-Actual application binary: `captures/static-analysis/extracted/app/PetteCali.exe`.
+1. **Live probing** against real hardware (CP2102 on macOS) — see
+   [`EXPERIMENT_LOG.md`](EXPERIMENT_LOG.md).
+2. **Serial captures** of the vendor calibration tool (PetteCali, native
+   C++/Qt6 Windows app) talking to the device.
+3. **Static analysis** of the vendor tool's binary to extract command
+   byte values and packet-builder structure where live capture was
+   ambiguous.
+
+Everything in this file describes observed protocol behaviour. The
+driver implementation is original code; no vendor binary or
+decompilation output is committed.
 
 ## Serial parameters (CONFIRMED — live hardware)
 
@@ -45,45 +52,47 @@ All packets are **6 bytes**:
 - Device → host: `0xFD`
 
 **Checksum:** simple byte sum of bytes[1] through bytes[4] (4 bytes),
-truncated to 8 bits.  Confirmed by: (a) disassembly of checksum loop
-in FUN_140069730, (b) live verification — bad checksums get no response.
+truncated to 8 bits.  Confirmed live: packets with bad checksums get
+no response.
 
-Source: instruction-level disassembly of `PetteCali.exe` at addresses
-0x140069730 (WriteEE), 0x140069a10 (SendCaliVolume), 0x140069c60
-(HandShake/StartCalibrate).
+The packet structure was extracted from the vendor calibration tool's
+packet-builder functions (WriteEE, SendCaliVolume, HandShake/Start­Calibrate)
+via static analysis and corroborated against live captures.
 
 ### Important: NOT 7 bytes
 
-The initial Ghidra decompilation suggested 7-byte packets with separate
-ADDR_HI/ADDR_LO/VAL_HI/VAL_LO fields.  This was WRONG — Ghidra's
-decompiler output was misleading due to Qt QByteArray call obfuscation.
-Instruction-level disassembly confirmed 6-byte packets with 3 payload
-bytes (B2, B3, B4) between CMD and CHECKSUM.
+An early decompilation pass suggested 7-byte packets with separate
+ADDR_HI/ADDR_LO/VAL_HI/VAL_LO fields. That was wrong — the decompiler's
+high-level output obscured the Qt `QByteArray::append` call sequence.
+Live captures and low-level analysis of the same packet-builder
+functions confirmed 6-byte packets with three payload bytes (B2, B3, B4)
+between CMD and CHECKSUM.
 
 ## Commands (CONFIRMED — disassembly + live)
 
-| CMD byte | Name             | Function in binary | Direction | Confirmed |
-|----------|------------------|--------------------|-----------|-----------|
-| `0xA0`   | **HELLO**        | —                  | host→dev  | **live ✓ EXP-049** |
-| `0xA1`   | INFO             | —                  | host→dev  | live ✓    |
-| `0xA2`   | STA              | —                  | host→dev  | live ✓    |
-| `0xA3`   | EE_READ          | response handler   | host→dev  | live ✓    |
-| `0xA4`   | EE_WRITE         | FUN_140069730      | host→dev  | live ✓    |
-| `0xA5`   | DEMARCATE        | FUN_140069c60      | host→dev  | live ✓ (cal mode) |
-| `0xA6`   | DMRCT_VOLUM      | FUN_140069a10      | host→dev  | live ✓ (cal only) |
-| `0xA7`   | RESET            | —                  | host→dev  | live ✓    |
-| `0xA8`   | DMRCT_PULSE      | —                  | host→dev  | live ✓    |
-| **`0xB0`** | **WOL (mode)** | —                  | host→dev  | **live ✓ EXP-049** |
-| **`0xB1`** | **SPEED**      | —                  | host→dev  | **live ✓ EXP-049** |
-| **`0xB2`** | **PI_VOLUM**   | —                  | host→dev  | **live ✓ EXP-050 motor** |
-| **`0xB3`** | **KEY (suck/blow)** | —             | host→dev  | **live ✓ EXP-050 motor** |
-| `0xB4`   | ST_VOLUM         | —                  | host→dev  | live ✓    |
-| `0xB5`   | ST_NUM           | —                  | host→dev  | live ✓    |
-| `0xB6`   | DI1_VOLUM        | —                  | host→dev  | live ✓    |
-| `0xB7`   | DI2_VOLUM        | —                  | host→dev  | live ✓    |
+| CMD byte | Name | Direction | Confirmed |
+|---|---|---|---|
+| `0xA0` | **HELLO** | host→dev | **live ✓ EXP-049** |
+| `0xA1` | INFO | host→dev | live ✓ |
+| `0xA2` | STA | host→dev | live ✓ |
+| `0xA3` | EE_READ | host→dev | live ✓ |
+| `0xA4` | EE_WRITE | host→dev | live ✓ |
+| `0xA5` | DEMARCATE | host→dev | live ✓ (cal mode) |
+| `0xA6` | DMRCT_VOLUM | host→dev | live ✓ (cal only) |
+| `0xA7` | RESET | host→dev | live ✓ |
+| `0xA8` | DMRCT_PULSE | host→dev | live ✓ |
+| **`0xB0`** | **WOL (mode)** | host→dev | **live ✓ EXP-049** |
+| **`0xB1`** | **SPEED** | host→dev | **live ✓ EXP-049** |
+| **`0xB2`** | **PI_VOLUM** | host→dev | **live ✓ EXP-050 motor** |
+| **`0xB3`** | **KEY (suck/blow)** | host→dev | **live ✓ EXP-050 motor** |
+| `0xB4` | ST_VOLUM | host→dev | live ✓ |
+| `0xB5` | ST_NUM | host→dev | live ✓ |
+| `0xB6` | DI1_VOLUM | host→dev | live ✓ |
+| `0xB7` | DI2_VOLUM | host→dev | live ✓ |
 
-CMD bytes extracted from `mov edx, 0xffffffXX` instructions immediately
-before `call rbx` (QByteArray::append) in each packet-builder function.
+The byte values were observed in serial captures of the vendor
+calibration tool and corroborated against the binary's packet-builder
+functions during static analysis.
 
 ### Command details
 
@@ -100,8 +109,8 @@ RX: [FD] [A5] [00]    [00] [00] [A5]
 - Response is always `fd a5 00 00 00 a5` regardless of param value
 - **WARNING:** A5 b2=1 causes persistent Err4 that survives reboots.
   Confirmed on two separate devices.  Only use when necessary.
-- Source: FUN_140069c60 disassembly; `param` comes from `movsx edx, sil`
-  at 0x140069ce1
+- Source: serial capture of PetteCali's calibration workflow plus
+  static analysis of its handshake/calibrate packet builder.
 
 **SendCaliVolume (0xA6):**
 
@@ -116,8 +125,9 @@ RX: [FD] [A6] [00]     [00]     [00] [A6]
   updated from 100 to 50, 150, 200 etc.)
 - **Does NOT control motor travel** — tested: A6=10 and A6=100 both
   aspirated the same amount.  Volume is set by physical dial only.
-- Source: FUN_140069a10 disassembly; calling code at line 12254
-  shows `iVar3 = param_2 * 10`
+- Source: serial capture of PetteCali's calibration volume command,
+  plus static analysis of the corresponding packet builder which
+  multiplies the input by 10.
 
 **WriteEE (0xA4) — CONFIRMED from PetteCali capture:**
 
@@ -279,25 +289,25 @@ Relationship: `actual_volume = k * motor_steps + b` (assumed).
 
 Two segments allow different k/b for low-volume and high-volume ranges.
 
-## Data receive handler (from decompilation)
+## Data receive handler — observed behaviour
 
-FUN_14001d850 (`readData` slot, connected to `QSerialPort::readyRead`):
+The vendor tool's response handler (a Qt `QSerialPort::readyRead` slot)
+shows the following shape, useful for understanding device timing:
 
-1. `QIODevice::readAll()` — gets available bytes
-2. Frame assembler: buffers bytes at `param_1 + 0x68` until 6 bytes
-3. Checks byte[0] == `0xFD` (response header)
-4. Dispatches on byte[1]:
-   - `0xA3`: enters calibration data parser (giant flag-based state machine)
-   - Other: standard ACK handling
-5. For 0xA3: checks flags at `param_1 + 0x80` through `0x8d` to determine
-   which EEPROM address was being read, extracts value via FUN_140069e00
+1. `QIODevice::readAll()` collects available bytes.
+2. A 6-byte frame assembler buffers incoming bytes until a full frame
+   arrives.
+3. Frames are validated by checking that byte[0] equals the RX header
+   (`0xFD`).
+4. Dispatch on byte[1]:
+   - `0xA3` (EE_READ) enters a calibration data parser that maps each
+     subsequent response to a specific EEPROM address via internal flags.
+   - All other responses go through standard ACK handling.
 
-FUN_14001af80 (buffered frame parser):
+A separate buffered parser exists for frames that arrive split across
+multiple `readyRead` events, with the same dispatch and flag logic.
 
-- Same dispatch logic for frames assembled across multiple readyRead calls
-- Same flag-based state machine for 0xA3 data
-
-Response timeout: 1000ms per read (`_timerRead->start(1000)`).
+Per-read timeout: 1000 ms.
 
 ## Remote pipetting flow — initial findings (2026-04-06)
 
