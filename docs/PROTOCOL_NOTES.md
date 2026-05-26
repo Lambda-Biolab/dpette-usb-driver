@@ -184,17 +184,31 @@ RX: [FD] [B0] [00] [00] [00] [B0]
 - Works in both normal and calibration modes (confirmed live)
 - `b2=0x00` does NOT trigger dispense
 
-**Data dump commands (0xA1, 0xA2) — 13-byte responses:**
+**INFO (0xA1) — 6-byte response with channel + range fields:**
 
 ```text
-TX: [FE] [A1] [b2] [b3] [b4] [cksum]
-RX: [FD] [A1] [00] [00] [00] [00] [00] [00] [00] [00] [00] [00] [A1]
+TX: [FE] [A1] [00] [00] [00] [A1]
+RX: [FD] [A1] [type] [range_hi] [range_lo] [cksum]
 ```
 
-- Both return 13-byte responses (header + cmd + 10 data bytes + checksum)
-- All data bytes are zero (uncalibrated device)
-- Payload (b2/b3/b4) does not affect the response
-- Likely bulk calibration data read commands
+- `type` (b2): `1` = single-channel, `2` = multi-channel
+- `range_hi:range_lo` (b3, b4): max volume in µL, 16-bit big-endian
+- Confirmed against the DLAB spec (`Communication_Protocol_CN.doc` §2)
+- Decoding tracked in [#37](https://github.com/Lambda-Biolab/dpette-usb-driver/issues/37);
+  our earlier "13-byte response, all zeros" observation was almost certainly
+  two A1 replies arriving in one read buffer.
+
+**STA (0xA2) — 11-byte long-format response (reserved):**
+
+```text
+TX: [FE] [A2] [00] [00] [00] [A2]
+RX: [FD] [A2] [b2] [b3..b9 — 7 bytes] [cksum]
+```
+
+- Long-format response (header + cmd + 1 status byte + 7 data bytes + checksum = 11 bytes)
+- Marked "暂无使用" (currently unused) in the DLAB spec §3 — payload semantics
+  not documented by the vendor
+- Confirmed against the DLAB spec (`Communication_Protocol_CN.doc` §3)
 
 ## Response format (CONFIRMED — live)
 
