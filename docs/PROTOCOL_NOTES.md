@@ -171,6 +171,10 @@ RX: [FD] [B3] [00] [00] [00] [B3]   ← motor started
 - `b2=0x01` triggers aspiration at the pipette's physical dial volume
 - Returns a **double 6-byte response**: first packet (b2=0x00) = started,
   second packet (b2=0x01) = completed
+- The completion packet's `b2` **echoes the action byte**: SUCK→`b2=0x01`,
+  BLOW→`b2=0x02` (issue #38).  The driver asserts this match and raises
+  `DeviceError` on mismatch (e.g. B3 sent without a prior B0 prime returns
+  a single packet with `b2=0x00`).
 - **REQUIRES B0 b2=1 to be sent first** ("prime") — without the prior
   B0, B3 is rejected (returns single 6-byte response, no motor)
 - Rejected in calibration mode

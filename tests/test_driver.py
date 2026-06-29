@@ -367,6 +367,25 @@ class TestDeviceErrorStatusByte:
         assert pkt is not None
         assert pkt.b2 == 0x01
 
+    def test_key_completion_mismatch_raises_device_error(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        # Issue #38: completion b2 must echo the action.  A mismatch
+        # (e.g. B3 without prior B0 prime returns b2=0x00) raises.
+        bad_done = bytes.fromhex("fd b3 00 00 00 b3")  # b2=0x00, not 0x01
+        mock_serial.read.side_effect = [KEY_SUCK_ACK, bad_done]
+        with pytest.raises(DeviceError, match="does not match"):
+            connected_driver.aspirate()
+
+    def test_blow_completion_b2_matches_action(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        # Issue #38: BLOW completion echoes b2=0x02.
+        mock_serial.read.side_effect = [KEY_BLOW_ACK, KEY_BLOW_DONE]
+        pkt = connected_driver.dispense()
+        assert pkt is not None
+        assert pkt.b2 == 0x02
+
 
 class TestGetDeviceInfo:
     """Issue #37: decode A1 INFO response via the driver."""
@@ -428,6 +447,16 @@ class TestCalibration:
         assert pkt is not None
         written = mock_serial.write.call_args[0][0]
         assert written == bytes.fromhex("fe a5 00 00 00 a5")
+
+    def test_demarcate_enter_cal_refused(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        # Issue #2: A5 param=1 causes persistent Err4 — driver refuses.
+        mock_serial.write.reset_mock()  # clear writes from connect()
+        with pytest.raises(SafetyError, match="persistent Err4"):
+            connected_driver.demarcate(1)
+        # Must not have sent anything to the device.
+        mock_serial.write.assert_not_called()
 
     def test_set_cali_volume_sends_a6(
         self, connected_driver: DPetteDriver, mock_serial: MagicMock

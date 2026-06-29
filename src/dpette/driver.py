@@ -48,6 +48,7 @@ from dpette.protocol import (
 from dpette.safety import (
     DEFAULT_LIMITS,
     DeviceError,
+    SafetyError,
     SafetyLimits,
     validate_speed,
     validate_volume,
@@ -180,6 +181,10 @@ class DPetteDriver:
         motor has time to complete.  Stale packets from prior commands
         are discarded before sending.
 
+        The completion packet's ``b2`` echoes the action byte
+        (``SUCK→0x01``, ``BLOW→0x02``); a mismatch raises
+        :class:`dpette.safety.DeviceError` (issue #38).
+
         Returns the second (completion) packet.
         """
         self._link.flush_input()
@@ -202,7 +207,18 @@ class DPetteDriver:
             raise TimeoutError(
                 "KEY completion packet not received -- motor state unknown"
             )
-        return decode_packet(done)
+        done_pkt = decode_packet(done)
+        # Issue #38: the completion packet echoes the action byte in b2.
+        # A mismatch means the device rejected the command or returned an
+        # unexpected state (e.g. B3 sent without a prior B0 prime returns
+        # a single packet with b2=0x00).
+        if done_pkt.b2 != action:
+            raise DeviceError(
+                f"KEY completion b2=0x{done_pkt.b2:02X} does not match "
+                f"requested action 0x{action:02X} -- command likely rejected "
+                f"(missing B0 prime?)"
+            )
+        return done_pkt
 
     # -- mode management ------------------------------------------------------
 
@@ -472,9 +488,21 @@ class DPetteDriver:
         ``param=0``: exit.  ``param=1``: enter.
 
         .. warning::
-           param=1 causes persistent Err4 on reboot.
+           ``param=1`` causes persistent Err4 on reboot (issue #2) and is
+           **refused by this method** — it raises :class:`SafetyError`.
+           The flag survives reboots and cannot be cleared via serial.
+           To enter calibration mode for experiments, use the raw
+           ``demarcate_packet(1)`` builder from a ``tools/`` script
+           where the risk is explicit.
         """
         self._require_connected()
+        if param == 1:
+            raise SafetyError(
+                "A5 param=1 (enter calibration mode) causes persistent Err4 "
+                "that survives reboots and cannot be cleared via serial "
+                "(issue #2). Use demarcate_packet(1) from a tools/ script "
+                "if you accept the risk."
+            )
         if self._stub_mode:
             return None
         return self._transact(demarcate_packet(param))

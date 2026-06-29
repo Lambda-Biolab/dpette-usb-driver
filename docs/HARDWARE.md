@@ -90,3 +90,29 @@ before relying on it for automation.
 The microcontroller inside the pipette is unknown.  It communicates
 with the CP210x bridge over UART.  We do not attempt to identify or
 interact with it beyond the serial protocol.
+
+## Physical UX
+
+> **Status: UNVERIFIED** — reported in
+> [xg590/Learn_dPettePlus](https://github.com/xg590/Learn_dPettePlus)
+> (no license — treat as observation, not source).  Needs live
+> confirmation on both single-channel dPette and dPette+/multichannel.
+
+**Settings menu gesture (unverified):** a clockwise then counterclockwise
+turn of the black crown (the volume-adjustment dial) is reported to enter
+the device's **settings menu**.
+
+This is operationally useful because it may provide a serial-free
+alternative to the dangerous `A5 b2=1` (enter calibration mode) command,
+which causes persistent Err4 (see `docs/SAFETY_MODEL.md` and issue #2).
+
+**To verify (issue #39):**
+
+1. Try the gesture on a real device — single-channel dPette and
+   dPette+ / 8-channel if available.
+2. Confirm what screen/menu it opens.
+3. Confirm whether it triggers Err4 like the serial `A5 b2=1` does.
+4. Confirm whether it allows exiting cal mode cleanly (potential
+   workaround for the persistent-Err4 problem).
+
+Once confirmed, promote this section from "unverified" to "verified".
