@@ -22,14 +22,19 @@ from typing import TYPE_CHECKING
 from dpette.logging_utils import get_logger
 from dpette.protocol import (
     PACKET_LEN,
+    RESPONSE_ERR,
+    STATUS_BYTE_COMMANDS,
     Command,
+    DeviceInfo,
     KeyAction,
     WorkingMode,
+    decode_info_response,
     decode_packet,
     demarcate_packet,
     di1_volume_packet,
     di2_volume_packet,
     hello_packet,
+    info_packet,
     key_packet,
     pi_volume_packet,
     read_ee_packet,
@@ -40,7 +45,13 @@ from dpette.protocol import (
     wol_packet,
     write_ee_packet,
 )
-from dpette.safety import DEFAULT_LIMITS, SafetyLimits, validate_speed, validate_volume
+from dpette.safety import (
+    DEFAULT_LIMITS,
+    DeviceError,
+    SafetyLimits,
+    validate_speed,
+    validate_volume,
+)
 from dpette.serial_link import SerialLink
 
 if TYPE_CHECKING:
@@ -138,6 +149,10 @@ class DPetteDriver:
         """Send *pkt* and return the decoded 6-byte response.
 
         Flushes any stale bytes in the receive buffer before sending.
+        For commands in
+        :data:`dpette.protocol.STATUS_BYTE_COMMANDS`, raises
+        :class:`dpette.safety.DeviceError` if the device reports an
+        execution error (``b2 == 0x01``).
         """
         self._link.flush_input()
         self._link.write(pkt)
@@ -146,7 +161,16 @@ class DPetteDriver:
             raise TimeoutError(
                 f"Device did not respond within {timeout:.1f}s (got {len(raw)} bytes)"
             )
-        return decode_packet(raw)
+        resp = decode_packet(raw)
+        # Issue #41: surface device-side execution errors.  Commands that
+        # carry data (EE_READ) or use a double response (KEY) are excluded
+        # from the universal status convention — see STATUS_BYTE_COMMANDS.
+        if resp.cmd in STATUS_BYTE_COMMANDS and resp.b2 == RESPONSE_ERR:
+            raise DeviceError(
+                f"Device reported error for cmd 0x{resp.cmd:02X} "
+                f"(status byte b2=0x{resp.b2:02X})"
+            )
+        return resp
 
     def _key_command(self, action: KeyAction) -> Packet:
         """Send B3 (KEY) and read the double 6-byte response.
@@ -202,6 +226,23 @@ class DPetteDriver:
         """Lazily enter PI mode if no mode is set."""
         if self._mode is None:
             self.enter_mode(WorkingMode.PI)
+
+    # -- device info ----------------------------------------------------------
+
+    def get_device_info(self) -> DeviceInfo | None:
+        """Query device type and volume range via A1 (INFO).
+
+        Returns a :class:`dpette.protocol.DeviceInfo` with the decoded
+        channel count and max volume.  On an uncalibrated device both
+        fields are ``None``.  Returns ``None`` in stub mode.
+        """
+        self._require_connected()
+        if self._stub_mode:
+            log.info("[STUB] get_device_info()")
+            return None
+        log.info("Querying device info (A1)")
+        pkt = self._transact(info_packet())
+        return decode_info_response(pkt.raw)
 
     # -- speed control --------------------------------------------------------
 
