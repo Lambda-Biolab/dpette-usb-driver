@@ -14,6 +14,18 @@ class SafetyError(Exception):
     """Raised when a requested operation violates safety limits."""
 
 
+class DeviceError(Exception):
+    """Raised when the device reports an execution error.
+
+    The DLAB protocol echoes a status byte (``参数1``) in ``b2`` of the
+    response for commands in
+    :data:`dpette.protocol.STATUS_BYTE_COMMANDS`:
+    ``0x00`` = success, ``0x01`` = error.  This exception surfaces a
+    device-side rejection (e.g. out-of-range volume, rejected command)
+    that the host-side :class:`SafetyError` guards cannot catch.
+    """
+
+
 class SafetyLimits(NamedTuple):
     """Mechanical / operational bounds for a dPette model.
 

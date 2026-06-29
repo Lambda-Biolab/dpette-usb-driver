@@ -13,15 +13,18 @@ from dpette.protocol import (
     HEADER_TX,
     PACKET_LEN,
     Command,
+    DeviceInfo,
     KeyAction,
     WorkingMode,
     compute_checksum,
+    decode_info_response,
     decode_packet,
     demarcate_packet,
     di1_volume_packet,
     di2_volume_packet,
     encode_packet,
     hello_packet,
+    info_packet,
     key_packet,
     pi_volume_packet,
     read_ee_packet,
@@ -132,6 +135,14 @@ class TestHelloPacket:
         assert hello_packet()[1] == Command.HELLO
 
 
+class TestInfoPacket:
+    def test_bytes(self) -> None:
+        assert info_packet() == bytes.fromhex("fe a1 00 00 00 a1")
+
+    def test_cmd_byte(self) -> None:
+        assert info_packet()[1] == Command.INFO
+
+
 class TestDemarcatePacket:
     def test_exit_cal(self) -> None:
         assert demarcate_packet(0) == DEMARCATE_TX
@@ -161,8 +172,21 @@ class TestReadEePacket:
     def test_cmd_is_a3(self) -> None:
         assert read_ee_packet(0x80)[1] == Command.EE_READ
 
-    def test_b2_is_zero(self) -> None:
+    def test_b2_is_zero_for_single_byte_addr(self) -> None:
         assert read_ee_packet(0x82)[2] == 0x00
+
+    @pytest.mark.parametrize(
+        "addr",
+        [0x0080, 0x00FF, 0x0100, 0xFFFF],
+        ids=["0x0080", "0x00FF", "0x0100", "0xFFFF"],
+    )
+    def test_two_byte_address_encoding(self, addr: int) -> None:
+        """Issue #42: address is split big-endian across b2 (hi) and b3 (lo)."""
+        pkt = read_ee_packet(addr)
+        assert pkt[1] == Command.EE_READ
+        assert pkt[2] == (addr >> 8) & 0xFF
+        assert pkt[3] == addr & 0xFF
+        assert pkt[4] == 0x00  # value byte unused on read
 
 
 class TestWriteEePacket:
@@ -170,7 +194,7 @@ class TestWriteEePacket:
         pkt = write_ee_packet(0x92, value=0x2F)
         assert pkt == bytes.fromhex("fe a4 00 92 2f 65")
 
-    def test_b2_is_zero(self) -> None:
+    def test_b2_is_zero_for_single_byte_addr(self) -> None:
         assert write_ee_packet(0x82, 0x42)[2] == 0x00
 
     def test_addr_position(self) -> None:
@@ -178,6 +202,19 @@ class TestWriteEePacket:
 
     def test_value_position(self) -> None:
         assert write_ee_packet(0x90, 0xAB)[4] == 0xAB
+
+    @pytest.mark.parametrize(
+        "addr",
+        [0x0080, 0x00FF, 0x0100, 0xFFFF],
+        ids=["0x0080", "0x00FF", "0x0100", "0xFFFF"],
+    )
+    def test_two_byte_address_encoding(self, addr: int) -> None:
+        """Issue #42: address is split big-endian across b2 (hi) and b3 (lo)."""
+        pkt = write_ee_packet(addr, 0xAB)
+        assert pkt[1] == Command.EE_WRITE
+        assert pkt[2] == (addr >> 8) & 0xFF
+        assert pkt[3] == addr & 0xFF
+        assert pkt[4] == 0xAB
 
 
 class TestWolPacket:
@@ -238,3 +275,54 @@ class TestDiVolumePackets:
 
     def test_di2_100ul(self) -> None:
         assert di2_volume_packet(100.0) == bytes.fromhex("fe b7 00 27 10 ee")
+
+
+class TestDecodeInfoResponse:
+    """Issue #37: decode A1 INFO response (channel count + max volume)."""
+
+    @staticmethod
+    def _build_info_response(channel: int, vol_hi: int, vol_lo: int) -> bytes:
+        # Standard 6-byte packet: [FD] [A1] [b2=channel] [b3=vol_hi] [b4=vol_lo] [cksum]
+        cksum = (Command.INFO + channel + vol_hi + vol_lo) & 0xFF
+        return bytes([HEADER_RX, Command.INFO, channel, vol_hi, vol_lo, cksum])
+
+    def test_single_channel_1000ul(self) -> None:
+        raw = self._build_info_response(channel=1, vol_hi=0x03, vol_lo=0xE8)
+        info = decode_info_response(raw)
+        assert info == DeviceInfo(channel_count=1, max_volume_ul=1000)
+
+    def test_multi_channel_300ul(self) -> None:
+        raw = self._build_info_response(channel=2, vol_hi=0x01, vol_lo=0x2C)
+        info = decode_info_response(raw)
+        assert info.channel_count == 2
+        assert info.max_volume_ul == 300
+
+    def test_uncalibrated_device_returns_none_fields(self) -> None:
+        # All-zero payload (uncalibrated device) → None for both fields.
+        raw = self._build_info_response(channel=0, vol_hi=0, vol_lo=0)
+        info = decode_info_response(raw)
+        assert info.channel_count is None
+        assert info.max_volume_ul is None
+
+    def test_wrong_length_raises(self) -> None:
+        with pytest.raises(ValueError, match="Expected 6"):
+            decode_info_response(b"\xfd\xa1\x00\x00")
+
+    def test_wrong_header_raises(self) -> None:
+        bad = bytes([0xFE, Command.INFO, 0, 0, 0, Command.INFO])
+        with pytest.raises(ValueError, match="header"):
+            decode_info_response(bad)
+
+    def test_wrong_cmd_raises(self) -> None:
+        # Valid 6-byte packet but wrong command (STA instead of INFO).
+        cksum = (Command.STA + 0 + 0 + 0) & 0xFF
+        bad = bytes([HEADER_RX, Command.STA, 0, 0, 0, cksum])
+        with pytest.raises(ValueError, match="INFO cmd"):
+            decode_info_response(bad)
+
+    def test_bad_checksum_raises(self) -> None:
+        raw = self._build_info_response(channel=1, vol_hi=0x03, vol_lo=0xE8)
+        # Corrupt the checksum byte (last).
+        raw = raw[:-1] + bytes([(raw[-1] + 1) & 0xFF])
+        with pytest.raises(ValueError, match="Checksum"):
+            decode_info_response(raw)

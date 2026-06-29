@@ -16,7 +16,7 @@ import pytest
 from dpette.config import SerialConfig
 from dpette.driver import MAX_CONTIGUOUS_CYCLES, DPetteDriver
 from dpette.protocol import Command, KeyAction, WorkingMode
-from dpette.safety import SafetyError
+from dpette.safety import DeviceError, SafetyError
 
 # Canned response bytes for mocking
 HELLO_RX = bytes.fromhex("fd a0 00 00 00 a0")
@@ -306,6 +306,138 @@ class TestSetVolume:
             connected_driver.set_volume(99999.0)
 
 
+class TestDeviceErrorStatusByte:
+    """Issue #41: device-side execution errors (b2=0x01) must raise."""
+
+    def test_set_volume_raises_on_device_error(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        # Device rejects the volume (b2=0x01 on a STATUS_BYTE command).
+        err_rx = bytes.fromhex("fd b2 01 00 00 b3")
+        mock_serial.read.return_value = err_rx
+        with pytest.raises(DeviceError, match="cmd 0xB2"):
+            connected_driver.set_volume(200.0)
+
+    def test_enter_mode_raises_on_device_error(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        err_rx = bytes.fromhex("fd b0 01 00 00 b1")
+        mock_serial.read.return_value = err_rx
+        with pytest.raises(DeviceError, match="cmd 0xB0"):
+            connected_driver.enter_mode(WorkingMode.PI)
+
+    def test_set_speed_raises_on_device_error(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        err_rx = bytes.fromhex("fd b1 01 00 00 b2")
+        mock_serial.read.return_value = err_rx
+        with pytest.raises(DeviceError):
+            connected_driver.set_speed(KeyAction.SUCK, 2)
+
+    def test_read_ee_does_not_raise_on_nonzero_b2(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        # EE_READ returns the value in b2 — a nonzero value is NOT an error.
+        # b2=0x42 is the EEPROM value at the read address.
+        value_rx = bytes.fromhex("fd a3 42 00 00 e5")
+        mock_serial.read.return_value = value_rx
+        pkt = connected_driver.read_ee(0x90)
+        assert pkt is not None
+        assert pkt.b2 == 0x42
+
+    def test_write_ee_does_not_raise_on_nonzero_b2(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        # EE_WRITE response b2 is undocumented — a nonzero value must not
+        # be treated as a status error (EE_WRITE is excluded from
+        # STATUS_BYTE_COMMANDS).
+        value_rx = bytes.fromhex("fd a4 01 00 00 a5")
+        mock_serial.read.return_value = value_rx
+        pkt = connected_driver.write_ee(0x90, 0x42)
+        assert pkt is not None
+        assert pkt.b2 == 0x01
+
+    def test_key_completion_b2_not_treated_as_error(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        # B3 KEY completion echoes the action (0x01=suck) in b2 — not an
+        # error.  The double response must not trip the status check.
+        mock_serial.read.side_effect = [KEY_SUCK_ACK, KEY_SUCK_DONE]
+        pkt = connected_driver.aspirate()
+        assert pkt is not None
+        assert pkt.b2 == 0x01
+
+    def test_key_completion_mismatch_raises_device_error(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        # Issue #38: completion b2 must echo the action.  A mismatch
+        # (e.g. B3 without prior B0 prime returns b2=0x00) raises.
+        bad_done = bytes.fromhex("fd b3 00 00 00 b3")  # b2=0x00, not 0x01
+        mock_serial.read.side_effect = [KEY_SUCK_ACK, bad_done]
+        with pytest.raises(DeviceError, match="does not match"):
+            connected_driver.aspirate()
+
+    def test_blow_completion_b2_matches_action(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        # Issue #38: BLOW completion echoes b2=0x02.
+        mock_serial.read.side_effect = [KEY_BLOW_ACK, KEY_BLOW_DONE]
+        pkt = connected_driver.dispense()
+        assert pkt is not None
+        assert pkt.b2 == 0x02
+
+
+class TestGetDeviceInfo:
+    """Issue #37: decode A1 INFO response via the driver."""
+
+    @staticmethod
+    def _info_response(channel: int, vol_hi: int, vol_lo: int) -> bytes:
+        from dpette.protocol import HEADER_RX, Command
+
+        # Standard 6-byte packet: [FD] [A1] [channel] [vol_hi] [vol_lo] [cksum]
+        cksum = (Command.INFO + channel + vol_hi + vol_lo) & 0xFF
+        return bytes([HEADER_RX, Command.INFO, channel, vol_hi, vol_lo, cksum])
+
+    def test_get_device_info_decodes_single_channel(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        mock_serial.read.return_value = self._info_response(1, 0x03, 0xE8)
+        info = connected_driver.get_device_info()
+        assert info is not None
+        assert info.channel_count == 1
+        assert info.max_volume_ul == 1000
+
+    def test_get_device_info_sends_a1(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        mock_serial.read.return_value = self._info_response(1, 0x03, 0xE8)
+        connected_driver.get_device_info()
+        written = mock_serial.write.call_args[0][0]
+        assert written == bytes.fromhex("fe a1 00 00 00 a1")
+
+    def test_get_device_info_uncalibrated_returns_none_fields(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        mock_serial.read.return_value = self._info_response(0, 0, 0)
+        info = connected_driver.get_device_info()
+        assert info is not None
+        assert info.channel_count is None
+        assert info.max_volume_ul is None
+
+    def test_get_device_info_timeout(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        mock_serial.read.return_value = b""  # no response
+        with pytest.raises(TimeoutError):
+            connected_driver.get_device_info()
+
+    def test_stub_get_device_info(self, cfg: SerialConfig) -> None:
+        with patch("dpette.serial_link.serial.Serial", side_effect=OSError):
+            drv = DPetteDriver(cfg)
+            drv.connect()
+            assert drv.get_device_info() is None
+
+
 class TestCalibration:
     def test_demarcate_sends_a5(
         self, connected_driver: DPetteDriver, mock_serial: MagicMock
@@ -315,6 +447,16 @@ class TestCalibration:
         assert pkt is not None
         written = mock_serial.write.call_args[0][0]
         assert written == bytes.fromhex("fe a5 00 00 00 a5")
+
+    def test_demarcate_enter_cal_refused(
+        self, connected_driver: DPetteDriver, mock_serial: MagicMock
+    ) -> None:
+        # Issue #2: A5 param=1 causes persistent Err4 — driver refuses.
+        mock_serial.write.reset_mock()  # clear writes from connect()
+        with pytest.raises(SafetyError, match="persistent Err4"):
+            connected_driver.demarcate(1)
+        # Must not have sent anything to the device.
+        mock_serial.write.assert_not_called()
 
     def test_set_cali_volume_sends_a6(
         self, connected_driver: DPetteDriver, mock_serial: MagicMock

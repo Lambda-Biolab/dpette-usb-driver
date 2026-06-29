@@ -132,27 +132,33 @@ RX: [FD] [A6] [00]     [00]     [00] [A6]
 **WriteEE (0xA4) — CONFIRMED from PetteCali capture:**
 
 ```text
-TX: [FE] [A4] [00] [ADDR] [VALUE] [cksum]
-RX: [FD] [A4] [??] [00]   [00]   [cksum]
+TX: [FE] [A4] [ADDR_HI] [ADDR_LO] [VALUE] [cksum]
+RX: [FD] [A4] [??]      [00]      [00]    [cksum]
 ```
 
-- **Address in byte[3], value in byte[4]** (confirmed from serial capture)
-- Byte[2] is always 0x00 in observed writes
+- **Address is 2-byte big-endian across `b2` (high) and `b3` (low)**,
+  per DLAB spec §5.  All known dPette EEPROM addresses (`0x80`–`0xAF`)
+  fit in the low byte, so `b2` is `0x00` for them — but the encoder
+  generalises to the full 16-bit range.
+- **Value in byte[4]** (confirmed from serial capture)
 - PetteCali sends each write twice (retry pattern)
-- Source: serial capture of PetteCali WriteData session (EXP-031)
+- Source: serial capture of PetteCali WriteData session (EXP-031);
+  2-byte address layout per `Communication_Protocol_CN.doc` §5.
 
 **ReadEE (0xA3) — CONFIRMED from PetteCali capture:**
 
 ```text
-TX: [FE] [A3] [00] [ADDR] [00] [cksum]
-RX: [FD] [A3] [VALUE] [00] [00] [cksum]
+TX: [FE] [A3] [ADDR_HI] [ADDR_LO] [00] [cksum]
+RX: [FD] [A3] [VALUE]   [00]      [00] [cksum]
+```
 ```
 
-- **Address in byte[3]** (NOT byte[2] — this is why earlier reads failed)
-- Byte[2] of TX is always 0x00
+- **Address is 2-byte big-endian across `b2` (high) and `b3` (low)**,
+  per DLAB spec §4.  For the known `0x80`–`0xAF` range, `b2` is `0x00`.
 - Response byte[2] contains the EEPROM value
 - PetteCali reads addresses 0x80 through 0xAD sequentially, each twice
-- Source: serial capture of PetteCali calibration session (EXP-031)
+- Source: serial capture of PetteCali calibration session (EXP-031);
+  2-byte address layout per `Communication_Protocol_CN.doc` §4.
 
 **Aspirate (0xB3) — CONFIRMED live, motor movement:**
 
@@ -165,6 +171,10 @@ RX: [FD] [B3] [00] [00] [00] [B3]   ← motor started
 - `b2=0x01` triggers aspiration at the pipette's physical dial volume
 - Returns a **double 6-byte response**: first packet (b2=0x00) = started,
   second packet (b2=0x01) = completed
+- The completion packet's `b2` **echoes the action byte**: SUCK→`b2=0x01`,
+  BLOW→`b2=0x02` (issue #38).  The driver asserts this match and raises
+  `DeviceError` on mismatch (e.g. B3 sent without a prior B0 prime returns
+  a single packet with `b2=0x00`).
 - **REQUIRES B0 b2=1 to be sent first** ("prime") — without the prior
   B0, B3 is rejected (returns single 6-byte response, no motor)
 - Rejected in calibration mode
@@ -197,6 +207,8 @@ RX: [FD] [A1] [type] [range_hi] [range_lo] [cksum]
 - Decoding tracked in [#37](https://github.com/Lambda-Biolab/dpette-usb-driver/issues/37);
   our earlier "13-byte response, all zeros" observation was almost certainly
   two A1 replies arriving in one read buffer.
+- Decoded by `dpette.protocol.decode_info_response()` and surfaced via
+  `DPetteDriver.get_device_info()`.
 
 **STA (0xA2) — 11-byte long-format response (reserved):**
 

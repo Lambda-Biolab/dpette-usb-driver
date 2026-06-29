@@ -65,7 +65,7 @@ TX1 pin (board) ──── Button pad A (pipette PCB)
 GND pin (HV side)──── Button pad B (pipette PCB)
 ```
 
-When `GP15` goes HIGH: MOSFET conducts → pads A/B shorted → MCU sees button press.  
+When `GP15` goes HIGH: MOSFET conducts → pads A/B shorted → MCU sees button press.
 When `GP15` goes LOW: MOSFET off → button open → normal state.
 
 No additional resistors needed — the DEBO LOGIC 4CH board has pull-ups built in.
@@ -76,17 +76,17 @@ No additional resistors needed — the DEBO LOGIC 4CH board has pull-ups built i
 
 ### Phase A — Set up the Pico
 
-**1. Solder pin headers**  
+**1. Solder pin headers**
 Place the 40-pin header strip into the breadboard (to hold it straight), rest
 the Pico on top, solder all 40 pins. ~10 minutes.
 
-**2. Flash MicroPython firmware**  
+**2. Flash MicroPython firmware**
 
 - Hold `BOOTSEL` while plugging in the micro-USB cable → mounts as `RPI-RP2`
-- Download MicroPython `.uf2` from <https://micropython.org/download/RPI_PICO2>
+- Download MicroPython `.uf2` from https://micropython.org/download/RPI_PICO2/
 - Drag the `.uf2` onto the `RPI-RP2` drive → Pico reboots automatically
 
-**3. Verify in REPL**  
+**3. Verify in REPL**
 Open a serial terminal (Thonny, or `screen /dev/tty.usbmodem* 115200`).
 Type `print("ok")` at the `>>>` prompt to confirm firmware is running.
 
@@ -110,24 +110,23 @@ Leave `TX1` and HV-side `GND` unconnected until Phase C.
 
 ### Phase C — Open the pipette and wire the button
 
-**6. Open the pipette**  
+**6. Open the pipette**
 Unscrew the body (2–4 Phillips screws on the back/side panel). Work slowly —
 case halves may have snap clips.
 
-**7. Locate the tactile button**  
+**7. Locate the tactile button**
 Find the push button PCB component (typically 6×6mm or 3×6mm square).
 
-**8. Identify the two active pads**  
+**8. Identify the two active pads**
 Set multimeter to continuity mode. Probe the button pads while pressing it —
 beeps when you find the two pads that complete the circuit.
 
-**9. Solder two short wires (~5cm) to the button pads**  
-
+**9. Solder two short wires (~5cm) to the button pads**
 - Apply flux to each pad
 - Tin the pad, tack one wire per pad
 - Verify no solder bridges to adjacent components
 
-**10. Route wires out of the pipette**  
+**10. Route wires out of the pipette**
 Thread wires through a gap in the case seam or a 2mm drilled hole. Close the case.
 
 #### 11. Connect button wires to level shifter

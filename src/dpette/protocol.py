@@ -73,6 +73,52 @@ class KeyAction(enum.IntEnum):
     BLOW = 2  # Dispense
 
 
+# ---------------------------------------------------------------------------
+# Response status convention
+# ---------------------------------------------------------------------------
+
+RESPONSE_OK: int = 0x00
+"""Universal success status byte (``参数1``) per DLAB spec.
+
+For commands in :data:`STATUS_BYTE_COMMANDS`, the device echoes this
+value in ``b2`` of its response: ``0x00`` = success, ``0x01`` = error.
+"""
+
+RESPONSE_ERR: int = 0x01
+"""Universal error status byte (``参数1``) per DLAB spec."""
+
+STATUS_BYTE_COMMANDS: frozenset[int] = frozenset(
+    {
+        Command.HELLO,
+        Command.DEMARCATE,
+        Command.DMRCT_VOLUM,
+        Command.RESET,
+        Command.DMRCT_PULSE,
+        Command.WOL,
+        Command.SPEED,
+        Command.PI_VOLUM,
+        Command.ST_VOLUM,
+        Command.ST_NUM,
+        Command.DI1_VOLUM,
+        Command.DI2_VOLUM,
+    }
+)
+"""Commands whose response ``b2`` follows the universal status convention
+(``0x00`` = success, ``0x01`` = error).
+
+Excluded by design:
+
+- :attr:`Command.EE_READ` — ``b2`` carries the read-back value, not a status.
+- :attr:`Command.EE_WRITE` — response ``b2`` is undocumented; left to the
+  caller until a live capture confirms the layout.
+- :attr:`Command.KEY` — returns a double response: the ACK packet has
+  ``b2=0x00``, the completion packet echoes the action (``0x01`` suck /
+  ``0x02`` blow).  Neither follows the universal convention.
+- :attr:`Command.INFO` / :attr:`Command.STA` — return 13-byte bulk
+  responses with a different shape (see :func:`decode_info_response`).
+"""
+
+
 @dataclass(frozen=True, slots=True)
 class Packet:
     """A single 6-byte protocol frame."""
@@ -91,6 +137,25 @@ class Packet:
     @property
     def raw(self) -> bytes:
         return bytes([self.header, self.cmd, self.b2, self.b3, self.b4, self.checksum])
+
+
+@dataclass(frozen=True, slots=True)
+class DeviceInfo:
+    """Decoded A1 (INFO) response.
+
+    Field layout is re-implemented from independent observation of the
+    dPette+ protocol (xg590/Learn_dPettePlus, no license — treated as
+    observation only):
+
+    - ``reply[2]`` → channel count (1 = single-channel, 2 = multi-channel)
+    - ``(reply[3] << 8) | reply[4]`` → max volume in µL
+
+    On an uncalibrated device the response is all-zero, in which case
+    both fields are ``0`` / ``None`` respectively.
+    """
+
+    channel_count: int | None
+    max_volume_ul: int | None
 
 
 def compute_checksum(cmd: int, b2: int, b3: int, b4: int) -> int:
@@ -137,6 +202,40 @@ def decode_packet(raw: bytes) -> Packet:
             f"Checksum mismatch: got 0x{cksum:02X}, expected 0x{expected:02X}"
         )
     return Packet(header=header, cmd=cmd, b2=b2, b3=b3, b4=b4, checksum=cksum)
+
+
+# ---------------------------------------------------------------------------
+# A1 (INFO) response decoding
+# ---------------------------------------------------------------------------
+
+
+def decode_info_response(raw: bytes) -> DeviceInfo:
+    """Parse a 6-byte A1 (INFO) response into :class:`DeviceInfo`.
+
+    The A1 response is a standard 6-byte packet whose payload carries
+    device identity (confirmed against DLAB spec §2):
+
+    - ``b2`` → channel count (``1`` = single-channel, ``2`` = multi-channel)
+    - ``(b3 << 8) | b4`` → max volume in µL, 16-bit big-endian
+
+    On an uncalibrated device the payload is all-zero, in which case
+    both fields are ``None``.
+
+    Raises
+    ------
+    ValueError
+        If *raw* is not a valid 6-byte INFO response (wrong length,
+        header, command, or checksum).
+    """
+    pkt = decode_packet(raw)
+    if pkt.cmd != Command.INFO:
+        raise ValueError(f"Expected INFO cmd 0x{Command.INFO:02X}, got 0x{pkt.cmd:02X}")
+    channel_count = pkt.b2
+    max_volume = (pkt.b3 << 8) | pkt.b4
+    return DeviceInfo(
+        channel_count=channel_count or None,
+        max_volume_ul=max_volume or None,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -189,23 +288,39 @@ def status_packet() -> bytes:
 def read_ee_packet(addr: int) -> bytes:
     """Build a ReadEE packet (A3).
 
-    Address goes in byte[3] (confirmed from PetteCali serial capture).
+    The EEPROM address is a 2-byte big-endian value split across
+    ``b2`` (high byte) and ``b3`` (low byte), per DLAB spec §4.
+
+    All known addresses in the dPette EEPROM map (``0x80``-``0xAF``)
+    fit in the low byte, so ``b2`` is ``0x00`` for them.  The encoder
+    generalises to the full 16-bit range.
 
     >>> read_ee_packet(0x90).hex(' ')
     'fe a3 00 90 00 33'
+    >>> read_ee_packet(0x0180).hex(' ')
+    'fe a3 01 80 00 24'
     """
-    return encode_packet(Command.EE_READ, b2=0x00, b3=addr & 0xFF)
+    return encode_packet(Command.EE_READ, b2=(addr >> 8) & 0xFF, b3=addr & 0xFF)
 
 
 def write_ee_packet(addr: int, value: int = 0) -> bytes:
     """Build a WriteEE packet (A4).
 
-    Address in byte[3], value in byte[4].
+    The EEPROM address is a 2-byte big-endian value split across
+    ``b2`` (high byte) and ``b3`` (low byte), per DLAB spec §5.  The
+    value to write goes in ``b4``.
 
     >>> write_ee_packet(0x92, 0x2F).hex(' ')
     'fe a4 00 92 2f 65'
+    >>> write_ee_packet(0x0180, 0xAB).hex(' ')
+    'fe a4 01 80 ab d0'
     """
-    return encode_packet(Command.EE_WRITE, b2=0x00, b3=addr & 0xFF, b4=value & 0xFF)
+    return encode_packet(
+        Command.EE_WRITE,
+        b2=(addr >> 8) & 0xFF,
+        b3=addr & 0xFF,
+        b4=value & 0xFF,
+    )
 
 
 def demarcate_packet(param: int = 0) -> bytes:
