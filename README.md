@@ -58,7 +58,7 @@ not discrete pipette volumes, so they solve a different problem.*
 - **Mixing** — aspirate/dispense cycling with caller-controlled tip position
 - **EEPROM read/write** — firmware version, calibration coefficients
 - **Single- and multichannel** — verified on the 8-channel dPette
-- 94 tests passing, 55 experiments documented
+- 121 tests passing, 55 experiments documented
 
 ## Quickstart
 
@@ -141,7 +141,7 @@ drv.set_speed(KeyAction.BLOW, 1)  # slow dispense
 ### Run tests (no hardware needed)
 
 ```bash
-pytest                  # 94 tests
+pytest                  # 121 tests
 ruff check src/ tests/  # lint
 mypy src/               # type check
 ```
