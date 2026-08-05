@@ -6,6 +6,7 @@
 [![CI](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/ci.yml)
 [![Dependabot Updates](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/dependabot/dependabot-updates/badge.svg?branch=main)](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/dependabot/dependabot-updates)
 [![CodeQL](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/Lambda-Biolab/dpette-usb-driver/actions/workflows/codeql.yml)
+
 Open-source Python driver for **DLAB dPette** and **dPette+** electronic
 pipettes. Full serial volume control, speed control, and three operating
 modes (pipetting, splitting, dilution) — no hardware modifications needed.
