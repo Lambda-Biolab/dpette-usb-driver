@@ -4,9 +4,19 @@ name: "CodeQL"
 
 on:
   push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   schedule:
     - cron: '27 11 * * 0'
   workflow_dispatch:
+
+# CodeQL MUST run on every PR so security findings block the
+# merge instead of showing up post-merge. The "merge-ref SHA race
+# with merge-protection check" concern applied to a top-level
+# pull_request trigger on a reusable workflow (pre-2023 behavior),
+# not to this file's own trigger. Mirroring the org rule documented
+# in antomicblitz/opencode-config/templates/python-repo/.github/workflows/ci.yml.
 
 jobs:
   analyze:
