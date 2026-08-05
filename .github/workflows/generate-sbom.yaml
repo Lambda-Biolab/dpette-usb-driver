@@ -1,5 +1,13 @@
 name: Generate SBOM
 
+# Replaces the previous composite Action wrapper with a direct
+# call to the opencode-config reusable workflow. That workflow
+# uses Syft directly (pinned to a specific version with SHA256
+# verification) and produces an SPDX 2.3 SBOM.
+#
+# Schedule: weekly (Sunday 00:00 UTC) — daily schedules produce
+# too many stale PRs. Manual trigger via workflow_dispatch for
+# ad-hoc runs.
 on:
   push:
     branches: [main]
@@ -13,10 +21,6 @@ permissions:
 
 jobs:
   generate-sbom:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-
-      - uses: qte77/gha-sbom-action@cd873b1278a6793a99cfe199c01d603d72cca717  # v0.1.1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+    uses: Lambda-Biolab/opencode-config/.github/workflows/sbom.yml@v1
+    with:
+      sbom-path: docs/SBOM/syft-scan.spdx.json
